@@ -1,5 +1,7 @@
 # Changelog
 
+## [Unreleased]
+
 ## [0.7.4] - 2026-08-16
 
 - Added persistent fullscreen selection with word and line multi-click gestures, configurable explicit copy, and mouse controls.

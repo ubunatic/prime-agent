@@ -1,5 +1,7 @@
 # Changelog
 
+## [Unreleased]
+
 ## [0.7.4] - 2026-08-16
 
 - Added fullscreen mouse controls, persistent selection, and Linux primary-selection copy support ([#8](https://github.com/ubunatic/prime-agent/issues/8)).
