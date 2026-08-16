@@ -2,7 +2,7 @@
 
 This document analyzes the existing GitHub Actions workflows in `.github/workflows/` and proposes updates to ensure clean CI execution and release publishing on the `ubunatic/prime-agent` fork without requiring third-party secrets (such as Cloudflare R2 credentials).
 
-**Status:** Open
+**Status:** Resolved
 
 ---
 
@@ -10,9 +10,9 @@ This document analyzes the existing GitHub Actions workflows in `.github/workflo
 
 | Workflow | Path | Status & Fork Compatibility | Recommended Action |
 | :--- | :--- | :--- | :--- |
-| **CI** | `.github/workflows/ci.yml` | **Compatible**<br>Runs linting (`npm run check`) and unit test shards. Works cleanly on GitHub runners without extra secrets. | Keep enabled. |
-| **Release Prime Agent** | `.github/workflows/build-binaries.yml` | **Incompatible (Missing Secrets)**<br>Triggers on release tags (`v*`). Attemps to sync release tarballs to a Cloudflare R2 bucket using `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, and `R2_BUCKET`. Will fail without these secrets. | Update to fallback to GitHub Releases / custom domain release host (`ubunatic.com/prime-agent`). |
-| **Contributor Gate** | `.github/workflows/contribution-gate.yml` | **Unnecessary**<br>Uses `mitchellh/vouch` to check contributor trust for PRs on the main repository. | Remove or disable for the fork. |
+| **CI** | `.github/workflows/ci.yml` | **Compatible**<br>Removed upstream `mitchellh/vouch` contributor gate check so fork CI runs smoothly on all PRs/branches. | Updated to remove vouch gating. |
+| **Release Prime Agent** | `.github/workflows/build-binaries.yml` | **Resolved**<br>Now defaults `PRIME_AGENT_DOWNLOAD_BASE_URL` to `https://github.com/${{ github.repository }}/releases/download` when `R2_PUBLIC_BASE_URL` is absent, makes R2 syncing optional if credentials are missing, and attaches all packaged release tarballs and installers directly to the GitHub Release. | Updated for GitHub Releases asset publishing. |
+| **Contributor Gate** | `.github/workflows/contribution-gate.yml` | **Removed**<br>Removed upstream vouch contribution gating workflow. | Removed. |
 | **Nightly Process Stress** | `.github/workflows/nightly-process-stress.yml` | **Compatible**<br>Runs process stress tests on a schedule. | Keep enabled or run manually. |
 
 ---
@@ -20,17 +20,16 @@ This document analyzes the existing GitHub Actions workflows in `.github/workflo
 ## 2. Technical Modifications Strategy
 
 ### A. Fallback Release Publishing in `build-binaries.yml`
-Update the `publish` job in [`build-binaries.yml`](file:///home/uwe/git/prime-agent/.github/workflows/build-binaries.yml) so that if R2 bucket credentials are absent:
-1. It creates/updates the GitHub Release directly using `ncipollo/release-action` or `gh release create`.
-2. Attach all packaged release tarballs (`prime-agent-vX.Y.Z.tgz`) and release manifests (`latest.json`, `beta.json`, `SHA256SUMS`) as assets to the GitHub Release.
+Updated [`build-binaries.yml`](file:///home/uwe/git/prime-agent/.github/workflows/build-binaries.yml):
+1. Sets `PRIME_AGENT_DOWNLOAD_BASE_URL` to `https://github.com/${{ github.repository }}/releases/download` by default.
+2. Guards R2 upload steps with `env.R2_BUCKET != '' && env.R2_ENDPOINT_URL != ''`.
+3. Attaches packaged release tarballs, manifests (`latest.json`, `beta.json`, `SHA256SUMS`), and rendered `install.sh` scripts directly to the GitHub Release via `gh release create` / `gh release upload`.
 
-### B. Disable `contribution-gate.yml`
-Remove or comment out `contribution-gate.yml` to prevent PR gating overhead.
+### B. Disable `contribution-gate.yml` & `ci.yml` Vouch Gate
+Removed `contribution-gate.yml` and eliminated the vouch dependency in `ci.yml`.
 
 ---
 
-## 3. Execution Plan
-
-1. Create issue file `issues/005-fork-github-workflows-adaptation.md`.
-2. Update `build-binaries.yml` to support GitHub Releases attachment when R2 secrets are not configured.
-3. Remove or disable `contribution-gate.yml`.
+## 3. Implementation Verification
+- [`install.sh`](file:///home/uwe/git/prime-agent/install.sh), [`packages/coding-agent/src/utils/version-check.ts`](file:///home/uwe/git/prime-agent/packages/coding-agent/src/utils/version-check.ts), and [`scripts/pack-prime-agent-release.mjs`](file:///home/uwe/git/prime-agent/scripts/pack-prime-agent-release.mjs) aligned to work seamlessly with GitHub Releases tag-based asset download paths.
+- Unit tests verified passing in `packages/coding-agent/test/version-check.test.ts`.

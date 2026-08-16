@@ -86,6 +86,26 @@ describe("version checks", () => {
 		});
 	});
 
+	it("resolves manifest and tarball paths properly for GitHub Releases download base URL", async () => {
+		const githubBaseUrl = "https://github.com/ubunatic/prime-agent/releases/download";
+		process.env.PRIME_AGENT_DOWNLOAD_BASE_URL = githubBaseUrl;
+		const fetchMock = vi.fn(async () =>
+			Response.json({
+				package: "prime-agent",
+				tarball: "v1.2.4/prime-agent-1.2.4.tgz",
+				version: "v1.2.4",
+			}),
+		);
+		vi.stubGlobal("fetch", fetchMock);
+
+		await expect(getLatestPiRelease("1.2.3")).resolves.toEqual({
+			installSpec: `${githubBaseUrl}/v1.2.4/prime-agent-1.2.4.tgz`,
+			packageName: "prime-agent",
+			version: "1.2.4",
+		});
+		expect(fetchMock).toHaveBeenCalledWith(`${githubBaseUrl}/latest/download/latest.json`, expect.any(Object));
+	});
+
 	it("skips api calls when version checks are disabled", async () => {
 		process.env.PI_SKIP_VERSION_CHECK = "1";
 		const fetchMock = vi.fn();

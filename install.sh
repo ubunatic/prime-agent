@@ -100,7 +100,14 @@ main() {
 
 	version="$(resolve_prime_agent_version "$@")"
 	tarball_name="$prime_agent_package-$version.tgz"
-	tarball_url="$prime_agent_base_url/releases/v$version/$tarball_name"
+	case "$prime_agent_base_url" in
+		*/releases/download)
+			tarball_url="$prime_agent_base_url/v$version/$tarball_name"
+			;;
+		*)
+			tarball_url="$prime_agent_base_url/releases/v$version/$tarball_name"
+			;;
+	esac
 
 	confirm_install "$version" "$tarball_url"
 	confirm_kernel_runtime_setup
@@ -943,19 +950,31 @@ resolve_prime_agent_version() {
 
 	channel_dir=$(create_temp_dir)
 	channel_path="$channel_dir/$release_channel"
+	channel_url="$prime_agent_base_url/$release_channel"
+	case "$prime_agent_base_url" in
+		*/releases/download)
+			# When using GitHub Releases download base, fetch channel file from latest or tag
+			if [ "$release_channel" = "stable" ]; then
+				channel_url="$prime_agent_base_url/latest/download/stable"
+			else
+				channel_url="$prime_agent_base_url/beta/download/beta"
+			fi
+			;;
+	esac
+
 	if ! prime_agent_run_quiet_with_animation \
 		"Resolving latest release" \
 		"Resolving latest release" \
 		"Checking the $release_channel release channel." \
-		curl -fsSL "$prime_agent_base_url/$release_channel" -o "$channel_path"; then
+		curl -fsSL "$channel_url" -o "$channel_path"; then
 		rm -rf "$channel_dir"
-		printf 'error: could not resolve latest Prime Agent version from %s/%s\n' "$prime_agent_base_url" "$release_channel" >&2
+		printf 'error: could not resolve latest Prime Agent version from %s\n' "$channel_url" >&2
 		exit 1
 	fi
 	channel_version="$(tr -d '[:space:]' <"$channel_path")"
 	rm -rf "$channel_dir"
 	if [ -z "$channel_version" ]; then
-		printf 'error: could not resolve latest Prime Agent version from %s/%s\n' "$prime_agent_base_url" "$release_channel" >&2
+		printf 'error: could not resolve latest Prime Agent version from %s\n' "$channel_url" >&2
 		exit 1
 	fi
 	normalize_version "$channel_version"
@@ -1526,7 +1545,14 @@ download_prime_agent_package() {
 	tarball_path="$3"
 	download_dir=$(dirname "$tarball_path")
 	tarball_name=$(basename "$tarball_path")
-	checksums_url="$prime_agent_base_url/releases/v$version/SHA256SUMS"
+	case "$prime_agent_base_url" in
+		*/releases/download)
+			checksums_url="$prime_agent_base_url/v$version/SHA256SUMS"
+			;;
+		*)
+			checksums_url="$prime_agent_base_url/releases/v$version/SHA256SUMS"
+			;;
+	esac
 	checksums_path="$download_dir/SHA256SUMS"
 
 	if ! command -v curl >/dev/null 2>&1; then

@@ -156,6 +156,9 @@ function npmTarballName(packageName, version) {
 }
 
 function releaseTarballUrl(baseUrl, version, tarballFile) {
+	if (baseUrl.includes("/releases/download")) {
+		return `${baseUrl}/v${version}/${tarballFile}`;
+	}
 	return `${baseUrl}/releases/v${version}/${tarballFile}`;
 }
 
@@ -327,11 +330,13 @@ function main() {
 		tarballs.map((tarball) => `${tarball.sha256}  ${tarball.file}`).join("\n") + "\n",
 	);
 	writeFileSync(join(artifactsDir, args.channel), `v${releaseVersion}\n`);
-	const manifestName = args.channel === "stable" ? "latest.json" : "beta.json";
+	const tarballRelativePath = args.baseUrl.includes("/releases/download")
+		? `v${releaseVersion}/${artifactFiles.get("coding-agent")}`
+		: `releases/v${releaseVersion}/${artifactFiles.get("coding-agent")}`;
 	writeJson(join(artifactsDir, manifestName), {
 		version: `v${releaseVersion}`,
 		package: publicPackageName,
-		tarball: `releases/v${releaseVersion}/${artifactFiles.get("coding-agent")}`,
+		tarball: tarballRelativePath,
 		tarballs: tarballs.map((tarball) => ({
 			package: tarball.name,
 			file: tarball.file,

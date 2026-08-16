@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Added GitHub Releases fallback for automated artifact publishing and installer distribution in forks without Cloudflare R2 credentials.
+
 ## [0.7.3] - 2026-08-16
 
 - Changed product analytics telemetry to default to disabled (opt-in instead of opt-out).

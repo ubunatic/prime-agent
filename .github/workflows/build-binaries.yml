@@ -151,7 +151,7 @@ jobs:
       - name: Pack production release
         if: env.PUBLISH_PRODUCTION == 'true'
         env:
-          PRIME_AGENT_DOWNLOAD_BASE_URL: ${{ vars.R2_PUBLIC_BASE_URL }}
+          PRIME_AGENT_DOWNLOAD_BASE_URL: ${{ vars.R2_PUBLIC_BASE_URL || format('https://github.com/{0}/releases/download', github.repository) }}
         run: |
           test -n "$PRIME_AGENT_DOWNLOAD_BASE_URL"
           npm run release:pack -- \
@@ -163,7 +163,7 @@ jobs:
       - name: Pack beta release
         if: env.PUBLISH_BETA == 'true'
         env:
-          PRIME_AGENT_DOWNLOAD_BASE_URL: ${{ vars.R2_PUBLIC_BASE_URL }}
+          PRIME_AGENT_DOWNLOAD_BASE_URL: ${{ vars.R2_PUBLIC_BASE_URL || format('https://github.com/{0}/releases/download', github.repository) }}
         run: |
           test -n "$PRIME_AGENT_DOWNLOAD_BASE_URL"
           npm run release:pack -- \
@@ -204,7 +204,7 @@ jobs:
       PUBLISH_PRODUCTION: ${{ needs.release-context.outputs.publish_production }}
       R2_BUCKET: ${{ secrets.R2_BUCKET }}
       R2_ENDPOINT_URL: ${{ secrets.R2_ENDPOINT_URL }}
-      R2_PUBLIC_BASE_URL: ${{ vars.R2_PUBLIC_BASE_URL }}
+      R2_PUBLIC_BASE_URL: ${{ vars.R2_PUBLIC_BASE_URL || format('https://github.com/{0}/releases/download', github.repository) }}
     steps:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -253,7 +253,7 @@ jobs:
           fi
 
       - name: Publish production channel to R2
-        if: env.PUBLISH_PRODUCTION == 'true'
+        if: env.PUBLISH_PRODUCTION == 'true' && env.R2_BUCKET != '' && env.R2_ENDPOINT_URL != ''
         run: |
           PRODUCTION_DIR=release-artifacts/production
           RELEASE_PREFIX="releases/v${PRODUCTION_VERSION}"
@@ -263,8 +263,6 @@ jobs:
           test -f "$PRODUCTION_DIR/SHA256SUMS"
           test -f "$PRODUCTION_DIR/stable"
           test -f "$PRODUCTION_DIR/latest.json"
-          test -n "$R2_BUCKET"
-          test -n "$R2_ENDPOINT_URL"
 
           for artifact in "$PRODUCTION_DIR"/*.tgz; do
             aws s3 cp "$artifact" "s3://${R2_BUCKET}/${RELEASE_PREFIX}/$(basename "$artifact")" \
@@ -310,6 +308,10 @@ jobs:
             target_args=(--target "$BUILD_REF")
           fi
 
+          # Include generated install scripts in the release assets
+          cp /tmp/prime-agent-install.sh "$PRODUCTION_DIR/install.sh"
+          cp /tmp/prime-agent-install-beta.sh "$PRODUCTION_DIR/install-beta.sh"
+
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
             gh release upload "$RELEASE_TAG" "$PRODUCTION_DIR"/* --clobber
           else
@@ -321,7 +323,7 @@ jobs:
           fi
 
       - name: Publish immutable beta artifacts to R2
-        if: env.PUBLISH_BETA == 'true'
+        if: env.PUBLISH_BETA == 'true' && env.R2_BUCKET != '' && env.R2_ENDPOINT_URL != ''
         run: |
           BETA_DIR=release-artifacts/beta
           RELEASE_PREFIX="releases/v${BETA_VERSION}"
@@ -331,8 +333,6 @@ jobs:
           test -f "$BETA_DIR/SHA256SUMS"
           test -f "$BETA_DIR/beta"
           test -f "$BETA_DIR/beta.json"
-          test -n "$R2_BUCKET"
-          test -n "$R2_ENDPOINT_URL"
 
           for artifact in "$BETA_DIR"/*.tgz; do
             aws s3 cp "$artifact" "s3://${R2_BUCKET}/${RELEASE_PREFIX}/$(basename "$artifact")" \
@@ -359,25 +359,32 @@ jobs:
           fi
 
           BETA_DIR=release-artifacts/beta
-          aws s3 cp "$BETA_DIR/beta.json" "s3://${R2_BUCKET}/beta.json" \
-            --endpoint-url "$R2_ENDPOINT_URL" \
-            --content-type application/json \
-            --cache-control no-cache
 
-          aws s3 cp "$BETA_DIR/beta" "s3://${R2_BUCKET}/beta" \
-            --endpoint-url "$R2_ENDPOINT_URL" \
-            --content-type text/plain \
-            --cache-control no-cache
+          if [ -n "$R2_BUCKET" ] && [ -n "$R2_ENDPOINT_URL" ]; then
+            aws s3 cp "$BETA_DIR/beta.json" "s3://${R2_BUCKET}/beta.json" \
+              --endpoint-url "$R2_ENDPOINT_URL" \
+              --content-type application/json \
+              --cache-control no-cache
 
-          aws s3 cp /tmp/prime-agent-install.sh "s3://${R2_BUCKET}/install.sh" \
-            --endpoint-url "$R2_ENDPOINT_URL" \
-            --content-type text/x-shellscript \
-            --cache-control no-cache
+            aws s3 cp "$BETA_DIR/beta" "s3://${R2_BUCKET}/beta" \
+              --endpoint-url "$R2_ENDPOINT_URL" \
+              --content-type text/plain \
+              --cache-control no-cache
 
-          aws s3 cp /tmp/prime-agent-install-beta.sh "s3://${R2_BUCKET}/install-beta.sh" \
-            --endpoint-url "$R2_ENDPOINT_URL" \
-            --content-type text/x-shellscript \
-            --cache-control no-cache
+            aws s3 cp /tmp/prime-agent-install.sh "s3://${R2_BUCKET}/install.sh" \
+              --endpoint-url "$R2_ENDPOINT_URL" \
+              --content-type text/x-shellscript \
+              --cache-control no-cache
+
+            aws s3 cp /tmp/prime-agent-install-beta.sh "s3://${R2_BUCKET}/install-beta.sh" \
+              --endpoint-url "$R2_ENDPOINT_URL" \
+              --content-type text/x-shellscript \
+              --cache-control no-cache
+          fi
+
+          # Include generated install scripts in beta release assets
+          cp /tmp/prime-agent-install.sh "$BETA_DIR/install.sh"
+          cp /tmp/prime-agent-install-beta.sh "$BETA_DIR/install-beta.sh"
 
           printf 'Automated beta build from `%s` (`%s`).\n' "$DEFAULT_BRANCH" "$BUILD_REF" > /tmp/beta-release-notes.md
 
@@ -409,4 +416,4 @@ jobs:
           fi
 
           gh release upload beta "$BETA_DIR"/* --clobber
-          echo "Beta installer: ${R2_PUBLIC_BASE_URL%/}/install-beta.sh"
+          echo "Beta release published to GitHub release tag 'beta'."
