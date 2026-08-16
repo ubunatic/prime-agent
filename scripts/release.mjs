@@ -3,15 +3,18 @@
  * Release script for pi-mono
  *
  * Usage:
- *   node scripts/release.mjs <major|minor|patch>
- *   node scripts/release.mjs <x.y.z>
+ *   node scripts/release.mjs <major|minor|patch> [--skip-npm-publish]
+ *   node scripts/release.mjs <x.y.z> [--skip-npm-publish]
+ *
+ * Environment variables:
+ *   PI_SKIP_NPM_PUBLISH=1   Skip npm publish step
  *
  * Steps:
  * 1. Check for uncommitted changes
  * 2. Bump version via npm run version:xxx or set an explicit version
  * 3. Update CHANGELOG.md files: [Unreleased] -> [version] - date
  * 4. Commit and tag
- * 5. Publish to npm
+ * 5. Publish to npm (optional)
  * 6. Add new [Unreleased] section to changelogs
  * 7. Commit
  */
@@ -20,12 +23,30 @@ import { execSync } from "child_process";
 import { readFileSync, writeFileSync, readdirSync, existsSync } from "fs";
 import { join } from "path";
 
-const RELEASE_TARGET = process.argv[2];
+const rawArgs = process.argv.slice(2);
+let releaseTarget;
+let skipNpmPublish = process.env.PI_SKIP_NPM_PUBLISH === "1" || process.env.PI_SKIP_NPM_PUBLISH === "true";
+
+for (const arg of rawArgs) {
+	if (arg === "--skip-npm-publish") {
+		skipNpmPublish = true;
+	} else if (!arg.startsWith("--") && !releaseTarget) {
+		releaseTarget = arg;
+	} else if (arg === "--help" || arg === "-h") {
+		console.log("Usage: node scripts/release.mjs <major|minor|patch|x.y.z> [--skip-npm-publish]");
+		process.exit(0);
+	} else {
+		console.error(`Unknown or unexpected argument: ${arg}`);
+		console.error("Usage: node scripts/release.mjs <major|minor|patch|x.y.z> [--skip-npm-publish]");
+		process.exit(1);
+	}
+}
+
 const BUMP_TYPES = new Set(["major", "minor", "patch"]);
 const SEMVER_RE = /^\d+\.\d+\.\d+$/;
 
-if (!RELEASE_TARGET || (!BUMP_TYPES.has(RELEASE_TARGET) && !SEMVER_RE.test(RELEASE_TARGET))) {
-	console.error("Usage: node scripts/release.mjs <major|minor|patch|x.y.z>");
+if (!releaseTarget || (!BUMP_TYPES.has(releaseTarget) && !SEMVER_RE.test(releaseTarget))) {
+	console.error("Usage: node scripts/release.mjs <major|minor|patch|x.y.z> [--skip-npm-publish]");
 	process.exit(1);
 }
 
@@ -156,7 +177,7 @@ if (status && status.trim()) {
 console.log("  Working directory clean\n");
 
 // 2. Bump or set version
-const version = bumpOrSetVersion(RELEASE_TARGET);
+const version = bumpOrSetVersion(releaseTarget);
 console.log(`  New version: ${version}\n`);
 
 // 3. Update changelogs
@@ -172,9 +193,13 @@ run(`git tag v${version}`);
 console.log();
 
 // 5. Publish
-console.log("Publishing to npm...");
-run("npm run publish");
-console.log();
+if (skipNpmPublish) {
+	console.log("Skipping npm publish (PI_SKIP_NPM_PUBLISH is enabled or --skip-npm-publish was passed)...\n");
+} else {
+	console.log("Publishing to npm...");
+	run("npm run publish");
+	console.log();
+}
 
 // 6. Add new [Unreleased] sections
 console.log("Adding [Unreleased] sections for next cycle...");
