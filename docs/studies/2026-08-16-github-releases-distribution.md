@@ -20,7 +20,26 @@ The goal of this session was to enable **Option 1 (GitHub Releases as the primar
 
 ---
 
-## 2. Executive Summary
+## 2. Fork Behavioral Changes in Installed `prime-agent`
+
+If you are running `prime-agent` installed from this fork (`ubunatic/prime-agent`), here are the core behavioral differences from upstream Prime Intellect:
+
+### A. Privacy & Telemetry (`issues/001`)
+* **Opt-In Telemetry**: Product analytics telemetry is disabled by default (`opt-in`). No usage data or traces are reported unless explicitly configured via settings or environment variables (`PI_TELEMETRY=1`).
+
+### B. User-Local Installation & Updates (`issues/002` & `issues/005`)
+* **Non-Root Execution**: Installs directly into `$HOME/.local/bin/prime-agent` without requiring `sudo` or global npm permissions.
+* **Direct GitHub Releases Distribution**: Version checks and update downloads query `https://github.com/ubunatic/prime-agent/releases/latest/download/` and self-contained release tarballs directly without external cloud storage dependencies.
+
+### C. Direct Provider Onboarding (`issues/003`)
+* **Decoupled Login Screen**: Onboarding splash no longer mandates or forces Prime Intellect account login. Unconfigured first launches route immediately to standard LLM provider key selection (OpenAI, Anthropic, Gemini, OpenRouter, etc.).
+
+### D. Zero-Secret Release Pipeline (`issues/004` & `issues/005`)
+* **Standalone Release Flow**: Packaged with `PI_SKIP_NPM_PUBLISH=1` and GitHub Actions release attachments, keeping the fork 100% autonomous from upstream npm registry publish credentials.
+
+---
+
+## 3. Executive Summary
 
 - Adapted [`.github/workflows/build-binaries.yml`](file:///home/uwe/git/prime-agent/.github/workflows/build-binaries.yml) to default `PRIME_AGENT_DOWNLOAD_BASE_URL` to `https://github.com/${{ github.repository }}/releases/download` and make R2 upload steps optional when secrets are absent.
 - Removed upstream contributor gate `.github/workflows/contribution-gate.yml` and eliminated vouch dependency in [`.github/workflows/ci.yml`](file:///home/uwe/git/prime-agent/.github/workflows/ci.yml).
