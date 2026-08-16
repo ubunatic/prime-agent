@@ -13,6 +13,7 @@ try {
 		platform: "browser",
 		format: "esm",
 		logLevel: "silent",
+		external: ["@opentelemetry/api"],
 		outfile: outputPath,
 	});
 	process.exit(0);
