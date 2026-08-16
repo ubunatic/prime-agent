@@ -131,8 +131,14 @@ try {
 	);
 
 	const noLogoStart = runCase("small initial terminal", 41, 24, 100, 30);
-	check(noLogoStart.meta.first.layout_show_logo === "0", "expected a too-narrow initial terminal to freeze text-only layout");
-	check(noLogoStart.meta.second.visible === "0", "expected terminal growth not to enable a logo after text-only layout was frozen");
+	check(
+		noLogoStart.meta.first.layout_show_logo === "0",
+		"expected a too-narrow initial terminal to freeze text-only layout",
+	);
+	check(
+		noLogoStart.meta.second.visible === "0",
+		"expected terminal growth not to enable a logo after text-only layout was frozen",
+	);
 
 	const narrowLogo = runCase("narrow logo on width shrink", 100, 30, 60, 24);
 	check(narrowLogo.meta.first.visible === "1", "expected the initial wide render to show the logo");
@@ -164,10 +170,14 @@ if (failures.length > 0) {
 console.log("Installer render check passed.");
 
 function runCase(name, initialCols, initialRows, resizedCols, resizedRows) {
-	const result = spawnSync("sh", [harnessPath, String(initialCols), String(initialRows), String(resizedCols), String(resizedRows)], {
-		detached: true,
-		encoding: "utf-8",
-	});
+	const result = spawnSync(
+		"sh",
+		[harnessPath, String(initialCols), String(initialRows), String(resizedCols), String(resizedRows)],
+		{
+			detached: true,
+			encoding: "utf-8",
+		},
+	);
 	if (result.status !== 0) {
 		failures.push(`${name}: harness exited with ${result.status ?? "unknown"}\n${result.stderr}${result.stdout}`);
 		return emptyParsedCase();
@@ -267,21 +277,33 @@ function assertLineWidths(name, label, parsed, cols, rows) {
 
 	const maxWidth = Math.max(cols - 1, 0);
 	for (const [index, line] of lines.entries()) {
-		check(line.length <= maxWidth, `${name}: ${label} render line ${index + 1} reached ${line.length} columns in a ${cols}-column terminal`);
+		check(
+			line.length <= maxWidth,
+			`${name}: ${label} render line ${index + 1} reached ${line.length} columns in a ${cols}-column terminal`,
+		);
 	}
 }
 
 function assertScreenFrame(name, label, parsed, cols, rows) {
 	const screen = parsed.screens[label] ?? "";
 	check(screen.endsWith(syncEnd), `${name}: expected ${label} screen frame to end with synchronized update close`);
-	check(!screen.endsWith(`\n${syncEnd}`), `${name}: expected ${label} screen frame not to emit a trailing row newline`);
-	check(countNewlines(screen) === rows - 1, `${name}: expected ${label} screen frame to contain ${rows - 1} line breaks`);
+	check(
+		!screen.endsWith(`\n${syncEnd}`),
+		`${name}: expected ${label} screen frame not to emit a trailing row newline`,
+	);
+	check(
+		countNewlines(screen) === rows - 1,
+		`${name}: expected ${label} screen frame to contain ${rows - 1} line breaks`,
+	);
 
 	const lines = screen.replace(ansiPattern, "").split("\n");
 	check(lines.length === rows, `${name}: expected ${label} screen frame to contain ${rows} rows, got ${lines.length}`);
 	const maxWidth = Math.max(cols - 1, 0);
 	for (const [index, line] of lines.entries()) {
-		check(line.length <= maxWidth, `${name}: ${label} screen line ${index + 1} reached ${line.length} columns in a ${cols}-column terminal`);
+		check(
+			line.length <= maxWidth,
+			`${name}: ${label} screen line ${index + 1} reached ${line.length} columns in a ${cols}-column terminal`,
+		);
 	}
 }
 

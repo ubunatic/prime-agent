@@ -15,7 +15,6 @@
  *
  * Requires the coding-agent package to be built (dist/). Run from the repo root.
  */
-import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 

@@ -20,7 +20,7 @@
  */
 
 import { execSync } from "child_process";
-import { readFileSync, writeFileSync, readdirSync, existsSync } from "fs";
+import { existsSync, readdirSync, readFileSync, writeFileSync } from "fs";
 import { join } from "path";
 
 const rawArgs = process.argv.slice(2);
@@ -54,7 +54,7 @@ function run(cmd, options = {}) {
 	console.log(`$ ${cmd}`);
 	try {
 		return execSync(cmd, { encoding: "utf-8", stdio: options.silent ? "pipe" : "inherit", ...options });
-	} catch (e) {
+	} catch {
 		if (!options.ignoreError) {
 			console.error(`Command failed: ${cmd}`);
 			process.exit(1);
@@ -88,7 +88,14 @@ function shellQuote(value) {
 
 function stageChangedFiles() {
 	const output = run("git ls-files -m -o -d --exclude-standard", { silent: true });
-	const paths = [...new Set((output || "").split("\n").map((line) => line.trim()).filter(Boolean))];
+	const paths = [
+		...new Set(
+			(output || "")
+				.split("\n")
+				.map((line) => line.trim())
+				.filter(Boolean),
+		),
+	];
 	if (paths.length === 0) {
 		return;
 	}
@@ -120,9 +127,7 @@ function bumpOrSetVersion(target) {
 function getChangelogs() {
 	const packagesDir = "packages";
 	const packages = readdirSync(packagesDir);
-	return packages
-		.map((pkg) => join(packagesDir, pkg, "CHANGELOG.md"))
-		.filter((path) => existsSync(path));
+	return packages.map((pkg) => join(packagesDir, pkg, "CHANGELOG.md")).filter((path) => existsSync(path));
 }
 
 function updateChangelogsForRelease(version) {
@@ -137,10 +142,7 @@ function updateChangelogsForRelease(version) {
 			continue;
 		}
 
-		const updated = content.replace(
-			"## [Unreleased]",
-			`## [${version}] - ${date}`
-		);
+		const updated = content.replace("## [Unreleased]", `## [${version}] - ${date}`);
 		writeFileSync(changelog, updated);
 		console.log(`  Updated ${changelog}`);
 	}
@@ -154,10 +156,7 @@ function addUnreleasedSection() {
 		const content = readFileSync(changelog, "utf-8");
 
 		// Insert after "# Changelog\n\n"
-		const updated = content.replace(
-			/^(# Changelog\n\n)/,
-			`$1${unreleasedSection}`
-		);
+		const updated = content.replace(/^(# Changelog\n\n)/, `$1${unreleasedSection}`);
 		writeFileSync(changelog, updated);
 		console.log(`  Added [Unreleased] to ${changelog}`);
 	}

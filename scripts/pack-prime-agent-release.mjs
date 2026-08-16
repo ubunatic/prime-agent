@@ -5,16 +5,7 @@
 
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import {
-	cpSync,
-	existsSync,
-	mkdirSync,
-	renameSync,
-	readFileSync,
-	rmSync,
-	statSync,
-	writeFileSync,
-} from "node:fs";
+import { cpSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { basename, dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -128,7 +119,10 @@ function packagePath(packageDir) {
 
 function assertSafeOutputDir(outDir) {
 	const relativeToReleaseRoot = relative(defaultOutputDir, outDir);
-	if (relativeToReleaseRoot === "" || (!relativeToReleaseRoot.startsWith("..") && !isAbsolute(relativeToReleaseRoot))) {
+	if (
+		relativeToReleaseRoot === "" ||
+		(!relativeToReleaseRoot.startsWith("..") && !isAbsolute(relativeToReleaseRoot))
+	) {
 		return;
 	}
 	throw new Error(`Refusing to remove output directory outside ${defaultOutputDir}: ${outDir}`);
@@ -289,12 +283,7 @@ function main() {
 		const sourcePackage = sourcePackages.get(releasePackage.packageDir);
 		const packageName = packageNames.get(releasePackage.packageDir);
 		const stagingDir = join(stagingRoot, releasePackage.packageDir);
-		const packageJson = createReleasePackageJson(
-			sourcePackage,
-			packageName,
-			releaseVersion,
-			internalPackageUrls,
-		);
+		const packageJson = createReleasePackageJson(sourcePackage, packageName, releaseVersion, internalPackageUrls);
 
 		copyPackageContents(packagePath(releasePackage.packageDir), stagingDir, packageJson);
 
@@ -327,7 +316,7 @@ function main() {
 	tarballs.sort((left, right) => left.file.localeCompare(right.file));
 	writeFileSync(
 		join(artifactsDir, "SHA256SUMS"),
-		tarballs.map((tarball) => `${tarball.sha256}  ${tarball.file}`).join("\n") + "\n",
+		`${tarballs.map((tarball) => `${tarball.sha256}  ${tarball.file}`).join("\n")}\n`,
 	);
 	writeFileSync(join(artifactsDir, args.channel), `v${releaseVersion}\n`);
 	const manifestName = args.channel === "stable" ? "latest.json" : "beta.json";

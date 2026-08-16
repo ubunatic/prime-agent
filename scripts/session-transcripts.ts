@@ -1,4 +1,5 @@
 #!/usr/bin/env npx tsx
+
 /**
  * Extracts session transcripts for a given cwd, splits into context-sized files,
  * optionally spawns subagents to analyze patterns.
@@ -9,13 +10,13 @@
  *   cwd            Working directory to extract sessions for (defaults to current)
  */
 
-import { readFileSync, readdirSync, writeFileSync, existsSync, mkdirSync } from "fs";
-import { spawn } from "child_process";
 import { createInterface } from "node:readline";
+import chalk from "chalk";
+import { spawn } from "child_process";
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "fs";
 import { homedir } from "os";
 import { join, resolve } from "path";
 import { parseSessionEntries, type SessionMessageEntry } from "../packages/coding-agent/src/core/session-manager.js";
-import chalk from "chalk";
 
 const MAX_CHARS_PER_FILE = 100_000; // ~20k tokens, leaving room for prompt + analysis + output
 
@@ -60,7 +61,7 @@ const MAX_DISPLAY_WIDTH = 100;
 function truncateLine(text: string, maxWidth: number): string {
 	const singleLine = text.replace(/\n/g, " ").replace(/\s+/g, " ").trim();
 	if (singleLine.length <= maxWidth) return singleLine;
-	return singleLine.slice(0, maxWidth - 3) + "...";
+	return `${singleLine.slice(0, maxWidth - 3)}...`;
 }
 
 interface JsonEvent {
@@ -98,7 +99,7 @@ function runSubagent(prompt: string, cwd: string): Promise<{ success: boolean }>
 				} else if (event.type === "tool_execution_start" && event.toolName) {
 					// Print accumulated text before tool starts
 					if (textBuffer.trim()) {
-						console.log(chalk.dim("  " + truncateLine(textBuffer, MAX_DISPLAY_WIDTH)));
+						console.log(chalk.dim(`  ${truncateLine(textBuffer, MAX_DISPLAY_WIDTH)}`));
 						textBuffer = "";
 					}
 					// Format tool call with args
@@ -116,7 +117,7 @@ function runSubagent(prompt: string, cwd: string): Promise<{ success: boolean }>
 				} else if (event.type === "turn_end") {
 					// Print any remaining text at turn end
 					if (textBuffer.trim()) {
-						console.log(chalk.dim("  " + truncateLine(textBuffer, MAX_DISPLAY_WIDTH)));
+						console.log(chalk.dim(`  ${truncateLine(textBuffer, MAX_DISPLAY_WIDTH)}`));
 					}
 					textBuffer = "";
 				}
