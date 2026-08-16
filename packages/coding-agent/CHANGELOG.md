@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.7.5] - 2026-08-16
 
 - Fixed self-update falling back to an unpublished npm package when the custom release domain is unavailable.
 
