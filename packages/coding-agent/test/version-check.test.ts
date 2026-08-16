@@ -103,7 +103,10 @@ describe("version checks", () => {
 			packageName: "prime-agent",
 			version: "1.2.4",
 		});
-		expect(fetchMock).toHaveBeenCalledWith(`${githubBaseUrl}/latest/download/latest.json`, expect.any(Object));
+		expect(fetchMock).toHaveBeenCalledWith(
+			"https://github.com/ubunatic/prime-agent/releases/latest/download/latest.json",
+			expect.any(Object),
+		);
 	});
 
 	it("skips api calls when version checks are disabled", async () => {

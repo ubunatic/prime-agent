@@ -954,10 +954,11 @@ resolve_prime_agent_version() {
 	case "$prime_agent_base_url" in
 		*/releases/download)
 			# When using GitHub Releases download base, fetch channel file from latest or tag
+			github_releases_base="${prime_agent_base_url%/download}"
 			if [ "$release_channel" = "stable" ]; then
-				channel_url="$prime_agent_base_url/latest/download/stable"
+				channel_url="$github_releases_base/latest/download/stable"
 			else
-				channel_url="$prime_agent_base_url/beta/download/beta"
+				channel_url="$github_releases_base/beta/download/beta"
 			fi
 			;;
 	esac
