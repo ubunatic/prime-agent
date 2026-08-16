@@ -70,7 +70,7 @@ main() {
 	if [ "$prime_agent_screen_enabled" = 1 ]; then
 		prime_agent_screen "Installing Prime Agent" "" "" ""
 	else
-		printf '\n\033[1m  Installing Prime Agent\033[0m\n\033[2m  npm global install\033[0m\n\n'
+		printf '\n\033[1m  Installing Prime Agent\033[0m\n\033[2m  user-local install\033[0m\n\n'
 	fi
 
 	start_preflight_checks
@@ -117,7 +117,9 @@ main() {
 	if [ "${PRIME_AGENT_NODE_INSTALLED_STANDALONE:-0}" = 1 ]; then
 		prime_agent_screen "Prime Agent installed" "" "Checking your shell PATH." ""
 		configure_standalone_node_path
-	elif command -v "$prime_agent_cmd" >/dev/null 2>&1; then
+	fi
+
+	if command -v "$prime_agent_cmd" >/dev/null 2>&1; then
 		if [ "$prime_agent_screen_enabled" = 1 ]; then
 			prime_agent_screen "Prime Agent installed" "" "Run it with: $prime_agent_cmd" ""
 		else
@@ -125,20 +127,7 @@ main() {
 			printf '\nRun it with: %s\n' "$prime_agent_cmd"
 		fi
 	else
-		if [ "$prime_agent_screen_enabled" = 1 ]; then
-			prime_agent_screen "Prime Agent installed" "" "PATH update needed for $prime_agent_cmd." ""
-			prime_agent_restore_terminal
-		else
-			printf '\nPrime Agent was installed successfully.\n'
-		fi
-		cat <<EOF
-The $prime_agent_cmd command was installed, but it is not on your PATH yet.
-Check npm's global bin directory with:
-
-  npm bin -g
-
-Then add that directory to your shell PATH.
-EOF
+		configure_user_local_path
 	fi
 }
 
@@ -1442,6 +1431,86 @@ standalone_node_path_line() {
 	printf 'export PATH="%s:$PATH"' "$PRIME_AGENT_STANDALONE_NODE_BIN"
 }
 
+configure_user_local_path() {
+	user_prefix="${XDG_DATA_HOME:-$HOME/.local}"
+	user_bin="$user_prefix/bin"
+
+	if [ "$prime_agent_screen_enabled" = 1 ]; then
+		prime_agent_screen "Prime Agent installed" "" "PATH update needed for $prime_agent_cmd." ""
+	else
+		printf '\nPrime Agent was installed successfully.\n'
+	fi
+
+	profile=$(detect_shell_profile) || {
+		if [ "$prime_agent_screen_enabled" = 1 ]; then
+			prime_agent_restore_terminal
+			printf '\n'
+		fi
+		print_user_local_path_manual_instructions "$user_bin"
+		return 0
+	}
+
+	if shell_profile_has_user_local_path "$profile" "$user_bin"; then
+		if [ "$prime_agent_screen_enabled" = 1 ]; then
+			prime_agent_screen "Prime Agent installed" "" "Run: $(prime_agent_source_profile_command "$profile")" ""
+		else
+			printf '%s already contains %s.\n' "$profile" "$user_bin"
+			printf 'Restart your shell or run: %s\n' "$(prime_agent_source_profile_command "$profile")"
+		fi
+		return 0
+	fi
+
+	prompt_add_user_local_path "$profile" "$user_bin"
+}
+
+shell_profile_has_user_local_path() {
+	profile="$1"
+	target_bin="$2"
+	[ -f "$profile" ] && grep -F "$target_bin" "$profile" >/dev/null 2>&1
+}
+
+prompt_add_user_local_path() {
+	profile="$1"
+	user_bin="$2"
+	path_line="export PATH=\"$user_bin:\$PATH\""
+
+	if ! prime_agent_prompt_yes_no \
+		"Add $user_bin to your PATH?" \
+		"Updates $profile so future shells can run $prime_agent_cmd." \
+		"Update PATH? [Y/n]"; then
+		if [ "$prime_agent_screen_enabled" = 1 ]; then
+			prime_agent_restore_terminal
+			printf '\n'
+		fi
+		print_user_local_path_manual_instructions "$user_bin"
+		return 0
+	fi
+
+	mkdir -p "$(dirname "$profile")"
+	{
+		printf '\n# Prime Agent user bin path\n'
+		printf '%s\n' "$path_line"
+	} >>"$profile"
+	if [ "$prime_agent_screen_enabled" = 1 ]; then
+		prime_agent_screen "Prime Agent installed" "" "Run: $(prime_agent_source_profile_command "$profile")" ""
+	else
+		printf 'Added %s to %s.\n' "$user_bin" "$profile"
+		printf 'Restart your shell or run: %s\n' "$(prime_agent_source_profile_command "$profile")"
+	fi
+}
+
+print_user_local_path_manual_instructions() {
+	user_bin="$1"
+	cat <<EOF
+The $prime_agent_cmd command was installed, but it is not on your PATH yet.
+Check the installation bin directory at:
+
+  $user_bin
+
+Then add that directory to your shell PATH.
+EOF
+}
+
 prime_agent_shell_quote() {
 	quoted=$(printf '%s' "$1" | sed "s/'/'\\\\''/g")
 	printf "'%s'" "$quoted"
@@ -1528,10 +1597,12 @@ prime_agent_run_checksum_check() {
 confirm_install() {
 	version="$1"
 	tarball_url="$2"
+	user_prefix="${XDG_DATA_HOME:-$HOME/.local}"
+	user_bin="$user_prefix/bin"
 
 	if prime_agent_prompt_yes_no \
-		"Install Prime Agent v$version globally with npm?" \
-		"Downloads the verified release and runs npm install -g." \
+		"Install Prime Agent v$version to $user_bin?" \
+		"Downloads the verified release and installs to $user_bin." \
 		"Install? [Y/n]"; then
 		return 0
 	else
@@ -1591,8 +1662,11 @@ confirm_kernel_runtime_setup() {
 
 install_prime_agent_package() {
 	tarball_path="$1"
+	user_prefix="${XDG_DATA_HOME:-$HOME/.local}"
+	mkdir -p "$user_prefix/bin"
+
 	if [ "$prime_agent_bootstrap_kernel_on_install" = 1 ]; then
-		npm_install_details="Preparing global install.
+		npm_install_details="Preparing user-local install.
 Linking command binaries.
 Installing runtime packages.
 Preloading search tools.
@@ -1602,9 +1676,9 @@ Finalizing npm install."
 			"Installing Prime Agent" \
 			"Installing Prime Agent" \
 			"$npm_install_details" \
-			env PRIME_AGENT_BOOTSTRAP_TOOLS_ON_INSTALL=1 PRIME_AGENT_BOOTSTRAP_KERNEL_ON_INSTALL=1 PRIME_AGENT_INSTALL_UV=1 npm install -g --no-fund --no-audit --loglevel=error --progress=false "$tarball_path"
+			env PRIME_AGENT_BOOTSTRAP_TOOLS_ON_INSTALL=1 PRIME_AGENT_BOOTSTRAP_KERNEL_ON_INSTALL=1 PRIME_AGENT_INSTALL_UV=1 npm install -g --prefix "$user_prefix" --no-fund --no-audit --loglevel=error --progress=false "$tarball_path"
 	else
-		npm_install_details="Preparing global install.
+		npm_install_details="Preparing user-local install.
 Linking command binaries.
 Installing runtime packages.
 Preloading search tools.
@@ -1613,7 +1687,7 @@ Finalizing npm install."
 			"Installing Prime Agent" \
 			"Installing Prime Agent" \
 			"$npm_install_details" \
-			env PRIME_AGENT_BOOTSTRAP_TOOLS_ON_INSTALL=1 npm install -g --no-fund --no-audit --loglevel=error --progress=false "$tarball_path"
+			env PRIME_AGENT_BOOTSTRAP_TOOLS_ON_INSTALL=1 npm install -g --prefix "$user_prefix" --no-fund --no-audit --loglevel=error --progress=false "$tarball_path"
 	fi
 }
 

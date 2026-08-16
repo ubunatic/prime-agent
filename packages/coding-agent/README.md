@@ -258,7 +258,7 @@ See [docs/settings.md](docs/settings.md) for all options.
 
 ### Update checks
 
-Prime Agent stable builds fetch `https://pub-728493de92a943e2a9b2d17b4719f318.r2.dev/latest.json` to check whether a newer version exists. Beta builds fetch `beta.json` and remain on the beta channel. Override the base URL with `PRIME_AGENT_DOWNLOAD_BASE_URL`. Disable version checks with `PI_SKIP_VERSION_CHECK=1`.
+Prime Agent stable builds fetch `https://ubunatic.com/prime-agent/latest.json` to check whether a newer version exists. Beta builds fetch `beta.json` and remain on the beta channel. Override the base URL with `PRIME_AGENT_DOWNLOAD_BASE_URL`. Disable version checks with `PI_SKIP_VERSION_CHECK=1`.
 
 Use `--offline` or `PI_OFFLINE=1` to disable startup network operations, including update checks and package update checks.
 

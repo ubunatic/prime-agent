@@ -48,7 +48,7 @@ Edit directly or use `/settings` for common options.
 
 ### Update Checks
 
-Stable builds fetch the release manifest at `https://pub-728493de92a943e2a9b2d17b4719f318.r2.dev/latest.json`. Beta builds fetch `beta.json` and continue following beta updates. Override the base URL with `PRIME_AGENT_DOWNLOAD_BASE_URL`.
+Stable builds fetch the release manifest at `https://ubunatic.com/prime-agent/latest.json`. Beta builds fetch `beta.json` and continue following beta updates. Override the base URL with `PRIME_AGENT_DOWNLOAD_BASE_URL`.
 
 Set `PI_SKIP_VERSION_CHECK=1` to disable the Prime Agent version update check. Use `--offline` or `PI_OFFLINE=1` to disable startup network operations, including update checks and package update checks.
 
@@ -74,7 +74,7 @@ Telemetry can be disabled globally or for an individual project. Project setting
 
 | Setting | Type | Default | Description |
 |---------|------|---------|-------------|
-| `telemetry.enabled` | boolean | `true` | Send pseudonymous aggregate usage and performance events |
+| `telemetry.enabled` | boolean | `false` | Send pseudonymous aggregate usage and performance events |
 
 Disable analytics with any of:
 
