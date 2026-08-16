@@ -1,5 +1,7 @@
 # Changelog
 
+## [Unreleased]
+
 ## [0.7.3] - 2026-08-16
 
 - Changed product analytics telemetry to default to disabled (opt-in instead of opt-out).
