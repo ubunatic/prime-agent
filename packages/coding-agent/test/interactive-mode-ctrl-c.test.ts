@@ -43,7 +43,7 @@ type FakeInteractiveMode = {
 	showTreeSelector: Mock;
 	shutdown: Mock;
 	updateEditorBorderColor: Mock;
-	queueSelection: { isBrowsing: boolean; reset: () => string };
+	queueSelection: { hasDraft: boolean; isBrowsing: boolean; reset: () => string };
 	defaultEditor?: {
 		onAction: Mock;
 		getHeaderLine?: () => string | undefined;
@@ -110,7 +110,7 @@ function createInteractiveFake(options: {
 		},
 		subagentSummaryLine: { invalidate: vi.fn() },
 		ui: { requestRender: vi.fn() },
-		queueSelection: { isBrowsing: false, reset: () => "" },
+		queueSelection: { hasDraft: false, isBrowsing: false, reset: () => "" },
 		updatePendingMessagesDisplay: vi.fn(),
 		showError: vi.fn(),
 		showTreeSelector: vi.fn(),
@@ -170,7 +170,7 @@ describe("InteractiveMode interrupt shortcuts", () => {
 		expect(mode.shutdown).not.toHaveBeenCalled();
 	});
 
-	it("preserves the queue and the draft when interrupting streaming", () => {
+	it("clears the draft while interrupting streaming", () => {
 		const mode = createInteractiveFake({ editorText: "draft", streaming: true });
 		mode.connectionQueue = { steering: ["steer"], followUp: ["follow"] };
 
@@ -179,7 +179,7 @@ describe("InteractiveMode interrupt shortcuts", () => {
 		expect(mode.agentConnection.abort).toHaveBeenCalledTimes(1);
 		expect(mode.agentConnection.abortAndClearQueue).not.toHaveBeenCalled();
 		expect(mode.agentConnection.clearQueue).not.toHaveBeenCalled();
-		expect(mode.editor.getText()).toBe("draft");
+		expect(mode.editor.getText()).toBe("");
 		expect(mode.connectionQueue).toEqual({ steering: ["steer"], followUp: ["follow"] });
 	});
 
@@ -198,7 +198,7 @@ describe("InteractiveMode interrupt shortcuts", () => {
 		const mode = createInteractiveFake({ editorText: "draft" });
 
 		Reflect.get(InteractiveMode.prototype, "handleCtrlC").call(mode);
-		expect(mode.editor.getText()).toBe("draft");
+		expect(mode.editor.getText()).toBe("");
 		expect(Reflect.get(InteractiveMode.prototype, "getTrayOverrideLabel").call(mode)).toBe(
 			"Press Ctrl+C again to exit",
 		);
@@ -210,12 +210,12 @@ describe("InteractiveMode interrupt shortcuts", () => {
 		expect(mode.ui.requestRender).toHaveBeenCalled();
 	});
 
-	it("preserves idle draft input on first Ctrl+C", () => {
+	it("clears idle draft input on first Ctrl+C", () => {
 		const mode = createInteractiveFake({ editorText: "draft" });
 
 		Reflect.get(InteractiveMode.prototype, "handleCtrlC").call(mode);
 
-		expect(mode.editor.getText()).toBe("draft");
+		expect(mode.editor.getText()).toBe("");
 		expect(mode.agentConnection.abort).not.toHaveBeenCalled();
 		expect(mode.shutdown).not.toHaveBeenCalled();
 	});

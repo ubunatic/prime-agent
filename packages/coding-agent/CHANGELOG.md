@@ -2,9 +2,10 @@
 
 ## [Unreleased]
 
-- Added fullscreen mouse controls, persistent selection, and Linux primary-selection copy support.
-
-- Added GitHub Releases fallback for automated artifact publishing and installer distribution in forks without Cloudflare R2 credentials.
+- Added fullscreen mouse controls, persistent selection, and Linux primary-selection copy support ([#8](https://github.com/ubunatic/prime-agent/issues/8)).
+- Added GitHub Releases fallback for automated artifact publishing and installer distribution in forks without Cloudflare R2 credentials ([#5](https://github.com/ubunatic/prime-agent/issues/5)).
+- Changed Ctrl+C to clear the active draft while interrupting work or arming the exit shortcut.
+- Fixed Backspace failing to remove a leading shell-mode `!` prefix.
 
 ## [0.7.3] - 2026-08-16
 

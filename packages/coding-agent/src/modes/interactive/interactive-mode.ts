@@ -6673,7 +6673,9 @@ export class InteractiveMode {
 			void this.shutdown();
 			return;
 		}
-		this.handleInterruptKey();
+		this.interruptOrClearInput();
+		this.clearInputBar();
+		this.showCtrlCExitHint();
 	}
 
 	private handleInterruptKey(): void {

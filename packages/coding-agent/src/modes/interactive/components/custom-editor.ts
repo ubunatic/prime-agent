@@ -25,6 +25,7 @@ export class CustomEditor extends Editor {
 	private placeholder: string | undefined;
 	private readonly placeholderColor: (text: string) => string;
 	private readonly isArgumentCommand: (name: string) => boolean;
+	private allowBashPrefixDeletion = false;
 	public actionHandlers: Map<AppKeybinding, () => void> = new Map();
 
 	// Special handlers that can be dynamically replaced
@@ -61,6 +62,7 @@ export class CustomEditor extends Editor {
 		if (lineIndex !== 0) {
 			return 0;
 		}
+		if (this.allowBashPrefixDeletion) return 0;
 		return this.getBashPromptInfo(line)?.hiddenTextPrefixLength ?? 0;
 	}
 
@@ -145,6 +147,16 @@ export class CustomEditor extends Editor {
 	}
 
 	handleInput(data: string): void {
+		if (this.isDeletingBashPrefix(data)) {
+			this.allowBashPrefixDeletion = true;
+			try {
+				super.handleInput(data);
+			} finally {
+				this.allowBashPrefixDeletion = false;
+			}
+			return;
+		}
+
 		// Check extension-registered shortcuts first
 		if (this.onExtensionShortcut?.(data)) {
 			return;
@@ -226,6 +238,16 @@ export class CustomEditor extends Editor {
 
 		// Pass to parent for editor handling
 		super.handleInput(data);
+	}
+
+	private isDeletingBashPrefix(data: string): boolean {
+		if (!this.keybindings.matches(data, "tui.editor.deleteCharBackward")) return false;
+		const cursor = this.getCursor();
+		if (cursor.line !== 0) return false;
+		const line = this.getLines()[0] ?? "";
+		const trimmed = line.trimStart();
+		const firstBang = line.length - trimmed.length;
+		return trimmed.startsWith("!") && cursor.col === firstBang + 1;
 	}
 
 	private isCursorAtEnd(): boolean {

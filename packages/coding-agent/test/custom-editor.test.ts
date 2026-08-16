@@ -263,4 +263,15 @@ describe("CustomEditor", () => {
 
 		expect(editor.render(40)).toEqual(withoutCallback);
 	});
+
+	it("leaves shell mode when backspace removes a leading bang", () => {
+		const editor = new CustomEditor(fakeTui, editorTheme, new KeybindingsManager());
+		editor.setText("type some text");
+		editor.handleInput("\x1b[H");
+		editor.handleInput("!");
+		expect(editor.getText()).toBe("!type some text");
+		editor.handleInput("\x7f");
+		expect(editor.getText()).toBe("type some text");
+		expect(editor.render(40)[1]).toContain("> ");
+	});
 });
