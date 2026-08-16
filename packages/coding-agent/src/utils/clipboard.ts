@@ -32,6 +32,34 @@ function emitOsc52(text: string): boolean {
 	return true;
 }
 
+export async function copyToPrimarySelection(text: string): Promise<boolean> {
+	if (platform() !== "linux") return false;
+
+	const options: NativeClipboardExecOptions = { input: text, timeout: 5000, stdio: ["pipe", "ignore", "ignore"] };
+	try {
+		if (isWaylandSession() && process.env.WAYLAND_DISPLAY) {
+			execSync("which wl-copy", { stdio: "ignore" });
+			const proc = spawn("wl-copy", ["--primary"], { stdio: ["pipe", "ignore", "ignore"] });
+			proc.stdin.on("error", () => {});
+			proc.stdin.write(text);
+			proc.stdin.end();
+			proc.unref();
+			return true;
+		}
+		if (process.env.DISPLAY) {
+			try {
+				execSync("xclip -selection primary", options);
+			} catch {
+				execSync("xsel --primary --input", options);
+			}
+			return true;
+		}
+	} catch {
+		return false;
+	}
+	return false;
+}
+
 export async function copyToClipboard(text: string): Promise<void> {
 	let copied = false;
 

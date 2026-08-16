@@ -87,6 +87,12 @@ export interface FullscreenOptions {
 	scroll: Component[];
 	dock: Component;
 	mouse?: boolean;
+	/** Enables in-app selection, copy, and hyperlink clicks. Defaults to true. */
+	mouseButtons?: boolean;
+	/** Copies an in-app selection to the clipboard on release. Defaults to true. */
+	mouseCopy?: boolean;
+	/** Keeps a drag selection visible after release. Defaults to false. */
+	mouseKeepSelection?: boolean;
 	viewportControls?: boolean;
 }
 
@@ -331,6 +337,10 @@ export class TUI extends Container {
 	private stopped = false;
 	private fullscreenLeftMouseDragged = false;
 	private fullscreenPressedHyperlink: string | null = null;
+	private fullscreenMultiClickSelection = false;
+	private fullscreenClickCount = 0;
+	private fullscreenLastClickAt = 0;
+	private fullscreenLastClickPosition: { row: number; col: number } | null = null;
 	private overlaySelectionRegions: FrameSelectionRegion[] = [];
 
 	// While set, doRender paints fixed frames via the viewport; the inline
@@ -340,6 +350,9 @@ export class TUI extends Container {
 		scroll: Component[];
 		dock: Component;
 		mouse: boolean;
+		mouseButtons: boolean;
+		mouseCopy: boolean;
+		mouseKeepSelection: boolean;
 		viewportControls: boolean;
 		inlineState: {
 			previousLines: string[];
@@ -353,6 +366,7 @@ export class TUI extends Container {
 		};
 	} | null = null;
 	private static readonly WHEEL_SCROLL_LINES = 3;
+	private static readonly MULTI_CLICK_INTERVAL_MS = 500;
 	private static readonly SELECTION_AUTO_SCROLL_DELAY_MS = 150;
 	private static readonly SELECTION_AUTO_SCROLL_INTERVAL_MS = 50;
 	private selectionAutoScrollTimer: NodeJS.Timeout | undefined;
@@ -687,6 +701,9 @@ export class TUI extends Container {
 			scroll: options.scroll,
 			dock: options.dock,
 			mouse: options.mouse !== false,
+			mouseButtons: options.mouseButtons !== false,
+			mouseCopy: options.mouseCopy !== false,
+			mouseKeepSelection: options.mouseKeepSelection === true,
 			viewportControls: options.viewportControls !== false,
 			inlineState: {
 				previousLines: this.previousLines,
@@ -791,13 +808,16 @@ export class TUI extends Container {
 	}
 
 	private copySelection(text: string): void {
+		const base64 = Buffer.from(text, "utf8").toString("base64");
 		if (this.onCopy) {
 			this.onCopy(text);
-			return;
+		} else {
+			// OSC 52 works locally, over SSH, and through tmux (set-clipboard).
+			this.terminal.write(`\x1b]52;c;${base64}\x07`);
 		}
-		// fallback: OSC 52 works locally, over SSH, and through tmux (set-clipboard)
-		const base64 = Buffer.from(text, "utf8").toString("base64");
-		this.terminal.write(`\x1b]52;c;${base64}\x07`);
+		if (process.platform === "linux") {
+			this.terminal.write(`\x1b]52;p;${base64}\x07`);
+		}
 	}
 
 	private updateSelectionAutoScroll(viewport: FullscreenViewport, screenRow: number, screenColumn: number): void {
@@ -919,6 +939,37 @@ export class TUI extends Container {
 		}
 	}
 
+	private fullscreenClickCountAt(row: number, col: number): number {
+		const now = performance.now();
+		const previous = this.fullscreenLastClickPosition;
+		const samePosition = previous?.row === row && previous.col === col;
+		this.fullscreenClickCount =
+			samePosition && now - this.fullscreenLastClickAt <= TUI.MULTI_CLICK_INTERVAL_MS
+				? (this.fullscreenClickCount % 3) + 1
+				: 1;
+		this.fullscreenLastClickAt = now;
+		this.fullscreenLastClickPosition = { row, col };
+		return this.fullscreenClickCount;
+	}
+
+	private selectFullscreenMultiClick(
+		viewport: FullscreenViewport,
+		clickCount: number,
+		row: number,
+		col: number,
+		overlayFocused: boolean,
+	): boolean {
+		if (clickCount < 2) return false;
+		const select = clickCount === 2 ? "word" : "line";
+		const transcript =
+			select === "word"
+				? viewport.selectTranscriptWord.bind(viewport)
+				: viewport.selectTranscriptLine.bind(viewport);
+		const frame =
+			select === "word" ? viewport.selectFrameWord.bind(viewport) : viewport.selectFrameLine.bind(viewport);
+		return overlayFocused ? frame(row, col) || transcript(row, col) : transcript(row, col) || frame(row, col);
+	}
+
 	// Mouse reports are always consumed (nothing downstream understands them);
 	// viewport keys are skipped while an overlay has focus so selectors keep
 	// their own pageUp/pageDown.
@@ -933,10 +984,19 @@ export class TUI extends Container {
 			const event = this.terminal.mouseTrackingActive ? parseSgrMouseEvent(data) : null;
 			const leftReleaseWasDrag =
 				event?.button === MOUSE_BUTTON_LEFT && !event.press ? this.fullscreenLeftMouseDragged : false;
-			if (event?.button === MOUSE_BUTTON_LEFT && event.press) {
+			if (fullscreen.mouseButtons && event?.button === MOUSE_BUTTON_LEFT && event.press) {
 				this.fullscreenLeftMouseDragged = event.motion;
+				this.fullscreenMultiClickSelection = false;
 				if (!event.motion) {
 					this.fullscreenPressedHyperlink = fullscreen.viewport.hyperlinkAt(event.y - 1, event.x - 1);
+					const clickCount = this.fullscreenClickCountAt(event.y - 1, event.x - 1);
+					this.fullscreenMultiClickSelection = this.selectFullscreenMultiClick(
+						fullscreen.viewport,
+						clickCount,
+						event.y - 1,
+						event.x - 1,
+						overlayFocused,
+					);
 				}
 			}
 			if (event && !overlayFocused) {
@@ -947,22 +1007,24 @@ export class TUI extends Container {
 				} else if (isWheelDown(event)) {
 					this.stopSelectionAutoScroll();
 					this.scrollBy(TUI.WHEEL_SCROLL_LINES);
-				} else if (event.button === MOUSE_BUTTON_LEFT && event.press && !event.motion) {
+				} else if (fullscreen.mouseButtons && event.button === MOUSE_BUTTON_LEFT && event.press && !event.motion) {
 					this.stopSelectionAutoScroll();
-					if (!viewport.beginSelection(event.y - 1, event.x - 1)) {
+					if (!this.fullscreenMultiClickSelection && !viewport.beginSelection(event.y - 1, event.x - 1)) {
 						viewport.beginFrameSelection(event.y - 1, event.x - 1);
 					}
 					this.requestRender();
-				} else if (event.button === MOUSE_BUTTON_LEFT && event.press && event.motion) {
+				} else if (fullscreen.mouseButtons && event.button === MOUSE_BUTTON_LEFT && event.press && event.motion) {
 					viewport.extendActiveSelection(event.y - 1, event.x - 1);
 					this.updateSelectionAutoScroll(viewport, event.y - 1, event.x - 1);
 					this.requestRender();
-				} else if (!event.press && viewport.hasSelection()) {
+				} else if (fullscreen.mouseButtons && !event.press && viewport.hasSelection()) {
 					this.stopSelectionAutoScroll();
-					const text = viewport.endActiveSelection();
-					if (text) this.copySelection(text);
+					const text = viewport.endActiveSelection(
+						fullscreen.mouseKeepSelection && (leftReleaseWasDrag || this.fullscreenMultiClickSelection),
+					);
+					if (text && fullscreen.mouseCopy) this.copySelection(text);
 					this.requestRender();
-				} else if (!event.press) {
+				} else if (fullscreen.mouseButtons && !event.press) {
 					this.stopSelectionAutoScroll();
 					viewport.clearSelection();
 					if (event.button === MOUSE_BUTTON_LEFT && !event.motion && !leftReleaseWasDrag) {
@@ -970,11 +1032,11 @@ export class TUI extends Container {
 						if (url) this.openHyperlink(url);
 					}
 				}
-			} else if (event && overlayFocused) {
+			} else if (event && overlayFocused && fullscreen.mouseButtons) {
 				this.stopSelectionAutoScroll();
 				const viewport = fullscreen.viewport;
 				if (event.button === MOUSE_BUTTON_LEFT && event.press && !event.motion) {
-					if (!viewport.beginFrameSelection(event.y - 1, event.x - 1)) {
+					if (!this.fullscreenMultiClickSelection && !viewport.beginFrameSelection(event.y - 1, event.x - 1)) {
 						viewport.beginSelection(event.y - 1, event.x - 1);
 					}
 					this.requestRender();
@@ -982,8 +1044,10 @@ export class TUI extends Container {
 					viewport.extendActiveSelection(event.y - 1, event.x - 1);
 					this.requestRender();
 				} else if (!event.press && viewport.hasSelection()) {
-					const text = viewport.endActiveSelection();
-					if (text) this.copySelection(text);
+					const text = viewport.endActiveSelection(
+						fullscreen.mouseKeepSelection && (leftReleaseWasDrag || this.fullscreenMultiClickSelection),
+					);
+					if (text && fullscreen.mouseCopy) this.copySelection(text);
 					this.requestRender();
 				} else if (!event.press) {
 					viewport.clearSelection();
@@ -993,8 +1057,9 @@ export class TUI extends Container {
 					}
 				}
 			}
-			if (event?.button === MOUSE_BUTTON_LEFT && !event.press) {
+			if (fullscreen.mouseButtons && event?.button === MOUSE_BUTTON_LEFT && !event.press) {
 				this.fullscreenLeftMouseDragged = false;
+				this.fullscreenMultiClickSelection = false;
 				this.fullscreenPressedHyperlink = null;
 			}
 			return true;
@@ -1004,6 +1069,16 @@ export class TUI extends Container {
 		if (overlayFocused || !fullscreen.viewportControls) return false;
 
 		const keybindings = getKeybindings();
+		if (fullscreen.viewport.hasSelection() && keybindings.matches(data, "tui.select.cancel")) {
+			fullscreen.viewport.clearSelection();
+			this.requestRender();
+			return true;
+		}
+		if (fullscreen.viewport.hasSelection() && keybindings.matches(data, "tui.viewport.copySelection")) {
+			const text = fullscreen.viewport.endActiveSelection(true);
+			if (text) this.copySelection(text);
+			return true;
+		}
 		if (keybindings.matches(data, "tui.viewport.pageUp")) {
 			this.scrollBy(-fullscreen.viewport.pageSize());
 			return true;

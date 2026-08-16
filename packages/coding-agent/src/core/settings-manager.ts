@@ -46,6 +46,9 @@ export interface TerminalSettings {
 	showTerminalProgress?: boolean; // default: false (OSC 9;4 terminal progress indicators)
 	fullscreen?: boolean; // default: true (alternate-screen rendering with scrollable transcript)
 	fullscreenMouse?: boolean; // default: true
+	fullscreenMouseButtons?: boolean; // default: true (selection, copy, and hyperlink clicks)
+	fullscreenMouseCopy?: boolean; // default: true (copies in-app selections on release)
+	fullscreenMouseKeepSelection?: boolean; // default: false (keeps selections after release)
 }
 
 export interface ImageSettings {
@@ -1167,6 +1170,36 @@ export class SettingsManager {
 		}
 		this.globalSettings.terminal.fullscreenMouse = enabled;
 		this.markModified("terminal", "fullscreenMouse");
+		this.save();
+	}
+
+	getFullscreenMouseButtons(): boolean {
+		return this.settings.terminal?.fullscreenMouseButtons ?? true;
+	}
+
+	getFullscreenMouseCopy(): boolean {
+		return this.settings.terminal?.fullscreenMouseCopy ?? true;
+	}
+
+	getFullscreenMouseKeepSelection(): boolean {
+		return this.settings.terminal?.fullscreenMouseKeepSelection ?? false;
+	}
+
+	setFullscreenMouseButtons(enabled: boolean): void {
+		if (!this.globalSettings.terminal) {
+			this.globalSettings.terminal = {};
+		}
+		this.globalSettings.terminal.fullscreenMouseButtons = enabled;
+		this.markModified("terminal", "fullscreenMouseButtons");
+		this.save();
+	}
+
+	setFullscreenMouseCopy(enabled: boolean): void {
+		if (!this.globalSettings.terminal) {
+			this.globalSettings.terminal = {};
+		}
+		this.globalSettings.terminal.fullscreenMouseCopy = enabled;
+		this.markModified("terminal", "fullscreenMouseCopy");
 		this.save();
 	}
 

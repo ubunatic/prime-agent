@@ -187,6 +187,35 @@ export class FullscreenViewport {
 		return true;
 	}
 
+	/** Select the whitespace-delimited word at a transcript screen position. */
+	selectTranscriptWord(screenRow: number, screenCol: number): boolean {
+		if (!this.beginSelection(screenRow, screenCol)) return false;
+		const point = this.selectionAnchor!;
+		const bounds = this.transcriptSelectionBounds(point);
+		const span = this.wordSpan(this.lastTranscript[point.line] ?? "", point.col, bounds);
+		if (!span) {
+			this.clearSelection();
+			return false;
+		}
+		this.selectionAnchor = { line: point.line, col: span.from };
+		this.selectionHead = { line: point.line, col: span.to };
+		return true;
+	}
+
+	/** Select the complete selectable transcript line at a screen position. */
+	selectTranscriptLine(screenRow: number, screenCol: number): boolean {
+		if (!this.beginSelection(screenRow, screenCol)) return false;
+		const point = this.selectionAnchor!;
+		const bounds = this.transcriptSelectionBounds(point);
+		if (bounds.to <= bounds.from) {
+			this.clearSelection();
+			return false;
+		}
+		this.selectionAnchor = { line: point.line, col: bounds.from };
+		this.selectionHead = { line: point.line, col: bounds.to };
+		return true;
+	}
+
 	extendSelection(screenRow: number, screenCol: number): void {
 		if (!this.selectionAnchor || (this.selectionMode !== "transcript" && this.selectionMode !== "table")) return;
 		const line = this.transcriptLineForScreenRow(screenRow, true);
@@ -229,7 +258,7 @@ export class FullscreenViewport {
 	}
 
 	/** Finish the selection and return its plain text (null when empty). */
-	endSelection(): string | null {
+	endSelection(preserve = false): string | null {
 		if (this.selectionMode !== "transcript" && this.selectionMode !== "table") {
 			this.clearSelection();
 			return null;
@@ -240,7 +269,7 @@ export class FullscreenViewport {
 				? this.extractTableSelectionText(this.lastTranscript, sel)
 				: this.extractSelectionText(this.lastTranscript, sel)
 			: null;
-		this.clearSelection();
+		if (!preserve) this.clearSelection();
 		return text;
 	}
 
@@ -252,12 +281,12 @@ export class FullscreenViewport {
 		}
 	}
 
-	endActiveSelection(): string | null {
+	endActiveSelection(preserve = false): string | null {
 		if (this.selectionMode === "frame") {
-			return this.endFrameSelection();
+			return this.endFrameSelection(preserve);
 		}
 		if (this.selectionMode === "transcript" || this.selectionMode === "table") {
-			return this.endSelection();
+			return this.endSelection(preserve);
 		}
 		this.clearSelection();
 		return null;
@@ -301,6 +330,35 @@ export class FullscreenViewport {
 		return true;
 	}
 
+	/** Select the whitespace-delimited word at a selectable frame position. */
+	selectFrameWord(screenRow: number, screenCol: number): boolean {
+		if (!this.beginFrameSelection(screenRow, screenCol)) return false;
+		const point = this.selectionAnchor!;
+		const bounds = this.frameSelectionBounds(point);
+		const span = this.wordSpan(this.activeFrameSelection?.frame[point.line] ?? "", point.col, bounds);
+		if (!span) {
+			this.clearSelection();
+			return false;
+		}
+		this.selectionAnchor = { line: point.line, col: span.from };
+		this.selectionHead = { line: point.line, col: span.to };
+		return true;
+	}
+
+	/** Select all selectable content on the frame line at a screen position. */
+	selectFrameLine(screenRow: number, screenCol: number): boolean {
+		if (!this.beginFrameSelection(screenRow, screenCol)) return false;
+		const point = this.selectionAnchor!;
+		const bounds = this.frameSelectionBounds(point);
+		if (bounds.to <= bounds.from) {
+			this.clearSelection();
+			return false;
+		}
+		this.selectionAnchor = { line: point.line, col: bounds.from };
+		this.selectionHead = { line: point.line, col: bounds.to };
+		return true;
+	}
+
 	extendFrameSelection(screenRow: number, screenCol: number): void {
 		if (!this.selectionAnchor || this.selectionMode !== "frame") return;
 		const point = this.framePoint(screenRow, screenCol, this.activeFrameSelection);
@@ -310,7 +368,7 @@ export class FullscreenViewport {
 		this.selectionHead = clamped;
 	}
 
-	endFrameSelection(): string | null {
+	endFrameSelection(preserve = false): string | null {
 		if (this.selectionMode !== "frame") {
 			this.clearSelection();
 			return null;
@@ -319,7 +377,7 @@ export class FullscreenViewport {
 		const active = this.activeFrameSelection;
 		const sourceLines = active?.frame ?? this.lastFrame;
 		const regions = active?.regions ?? this.frameSelectionRegions;
-		this.clearSelection();
+		if (!preserve) this.clearSelection();
 		if (!sel) return null;
 		return this.extractFrameSelectionText(sourceLines, regions, sel);
 	}
@@ -384,6 +442,43 @@ export class FullscreenViewport {
 		const frameLine = bounds.visibleStart + row;
 		if (!clamp && (frameLine < bounds.transcriptStart || frameLine > bounds.transcriptEnd)) return null;
 		return this.scrollTop + Math.max(bounds.transcriptStart, Math.min(frameLine, bounds.transcriptEnd));
+	}
+
+	private transcriptSelectionBounds(point: SelectionPoint): ColumnSpan {
+		const table = this.activeTableSelection?.table;
+		if (this.selectionMode === "table" && table) {
+			const regions = this.tableRegions(table).filter(
+				(region) => region.line === point.line && point.col >= region.col && point.col < region.col + region.width,
+			);
+			if (regions.length > 0) {
+				return {
+					from: Math.min(...regions.map((region) => region.col)),
+					to: Math.max(...regions.map((region) => region.col + region.width)),
+				};
+			}
+		}
+		return { from: 0, to: visibleWidth(this.lastTranscript[point.line] ?? "") };
+	}
+
+	private frameSelectionBounds(point: SelectionPoint): ColumnSpan {
+		const regions = this.frameRegionsForLine(point.line);
+		return {
+			from: Math.min(...regions.map((region) => region.col)),
+			to: Math.max(...regions.map((region) => region.col + region.width)),
+		};
+	}
+
+	private wordSpan(line: string, col: number, bounds: ColumnSpan): ColumnSpan | null {
+		const plain = stripAnsi(line).replace(/\t/g, "   ");
+		for (const match of plain.matchAll(/\S+/gu)) {
+			const from = visibleWidth(plain.slice(0, match.index));
+			const to = from + visibleWidth(match[0]);
+			if (col >= from && col < to) {
+				const clamped = { from: Math.max(from, bounds.from), to: Math.min(to, bounds.to) };
+				return clamped.to > clamped.from ? clamped : null;
+			}
+		}
+		return null;
 	}
 
 	private isFrameSelectable(point: SelectionPoint): boolean {

@@ -736,6 +736,94 @@ describe("TUI fullscreen mode", () => {
 		tui.stop();
 	});
 
+	it("double-click selects a word and triple-click selects a line without automatic copy", async () => {
+		const transcript = lines(20);
+		transcript[12] = "alpha beta gamma";
+		const { terminal, tui, chat, dock } = setup(transcript);
+		const copies: string[] = [];
+		tui.onCopy = (text) => copies.push(text);
+		tui.enterFullscreen({ scroll: [chat], dock, mouseCopy: false, mouseKeepSelection: true });
+		await terminal.waitForRender();
+
+		// Two clicks on "beta" select the word. A third selects the full visual line.
+		for (let i = 0; i < 2; i++) {
+			terminal.sendInput("\x1b[<0;8;1M");
+			terminal.sendInput("\x1b[<0;8;1m");
+		}
+		await terminal.waitForRender();
+		assert.ok(terminal.getWrites().includes("\x1b[7mbeta\x1b[27m"), "double-click selects the word");
+		assert.deepStrictEqual(copies, []);
+
+		terminal.clearWrites();
+		terminal.sendInput("\x1b[<0;8;1M");
+		terminal.sendInput("\x1b[<0;8;1m");
+		await terminal.waitForRender();
+		assert.ok(terminal.getWrites().includes("\x1b[7malpha beta gamma\x1b[27m"), "triple-click selects the line");
+		assert.deepStrictEqual(copies, []);
+
+		// The interval resets the count, so the next click is a plain click.
+		await new Promise((resolve) => setTimeout(resolve, 550));
+		terminal.clearWrites();
+		terminal.sendInput("\x1b[<0;8;1M");
+		terminal.sendInput("\x1b[<0;8;1m");
+		await terminal.waitForRender();
+		assert.ok(!terminal.getWrites().includes("\x1b[7m"), "expired click count does not select");
+
+		tui.stop();
+	});
+
+	it("mouse copy can be disabled while selection remains enabled", async () => {
+		const { terminal, tui, chat, dock } = setup(lines(20));
+		const copies: string[] = [];
+		tui.onCopy = (text) => copies.push(text);
+		tui.enterFullscreen({ scroll: [chat], dock, mouseCopy: false });
+		await terminal.waitForRender();
+		terminal.clearWrites();
+
+		terminal.sendInput("\x1b[<0;1;1M");
+		terminal.sendInput("\x1b[<32;6;2M");
+		await terminal.waitForRender();
+		assert.ok(terminal.getWrites().includes("\x1b[7m"), "selection remains enabled while dragging");
+
+		terminal.sendInput("\x1b[<0;6;2m");
+		await terminal.waitForRender();
+		assert.deepStrictEqual(copies, []);
+
+		tui.stop();
+	});
+
+	it("wheel-only mouse mode scrolls without selection, copy, or hyperlink clicks", async () => {
+		const transcript = lines(20);
+		transcript[12] = "see \x1b]8;;https://example.com/docs\x1b\\docs\x1b]8;;\x1b\\ here";
+		const { terminal, tui, chat, dock } = setup(transcript);
+		const copies: string[] = [];
+		const opened: string[] = [];
+		tui.onCopy = (text) => copies.push(text);
+		tui.onOpenUrl = (url) => opened.push(url);
+		tui.enterFullscreen({ scroll: [chat], dock, mouseButtons: false });
+		await terminal.waitForRender();
+		assert.strictEqual(terminal.mouseTrackingActive, true);
+		terminal.clearWrites();
+
+		terminal.sendInput("\x1b[<0;6;1M");
+		terminal.sendInput("\x1b[<0;6;1m");
+		terminal.sendInput("\x1b[<0;1;1M");
+		terminal.sendInput("\x1b[<32;6;2M");
+		terminal.sendInput("\x1b[<0;6;2m");
+		await terminal.waitForRender();
+
+		assert.deepStrictEqual(copies, []);
+		assert.deepStrictEqual(opened, []);
+		assert.ok(!terminal.getWrites().includes("\x1b[7m"), "selection is never painted");
+
+		terminal.sendInput(WHEEL_UP);
+		await terminal.waitForRender();
+		assert.strictEqual(terminal.getViewport()[0], "Line 9");
+		assert.strictEqual(tui.getScrollInfo()?.following, false);
+
+		tui.stop();
+	});
+
 	it("keeps wrapped table-cell selection inside the originating cell", async () => {
 		const terminal = new LoggingVirtualTerminal(40, 12);
 		const tui = new TUI(terminal);
@@ -932,6 +1020,9 @@ describe("TUI fullscreen mode", () => {
 
 		const expected = Buffer.from("Line 12", "utf8").toString("base64");
 		assert.ok(terminal.getWrites().includes(`\x1b]52;c;${expected}\x07`));
+		if (process.platform === "linux") {
+			assert.ok(terminal.getWrites().includes(`\x1b]52;p;${expected}\x07`));
+		}
 
 		tui.stop();
 	});

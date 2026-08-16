@@ -133,7 +133,7 @@ import {
 import { type TruncationResult, truncateTail } from "../../core/tools/truncate.js";
 import { PRIME_BUTTERFLY_LOGO } from "../../themes/prime-logo.js";
 import { getChangelogPath, parseChangelog } from "../../utils/changelog.js";
-import { copyToClipboard } from "../../utils/clipboard.js";
+import { copyToClipboard, copyToPrimarySelection } from "../../utils/clipboard.js";
 import { readClipboardImage } from "../../utils/clipboard-image.js";
 import { parseGitUrl } from "../../utils/git.js";
 import { resizeImage } from "../../utils/image-resize.js";
@@ -6206,7 +6206,10 @@ export class InteractiveMode {
 	private async copyFullscreenSelection(text: string): Promise<void> {
 		try {
 			await copyToClipboard(text);
-			this.showStatus("Copied selection to clipboard");
+			const primaryCopied = await copyToPrimarySelection(text);
+			this.showStatus(
+				primaryCopied ? "Copied selection to clipboard and primary selection" : "Copied selection to clipboard",
+			);
 		} catch (error) {
 			this.showError(`Failed to copy selection: ${error instanceof Error ? error.message : String(error)}`);
 		}
@@ -7218,6 +7221,9 @@ export class InteractiveMode {
 				],
 				dock: this.promptDock,
 				mouse: this.settingsManager.getFullscreenMouse(),
+				mouseButtons: this.settingsManager.getFullscreenMouseButtons(),
+				mouseCopy: this.settingsManager.getFullscreenMouseCopy(),
+				mouseKeepSelection: this.settingsManager.getFullscreenMouseKeepSelection(),
 			});
 		} else {
 			this.ui.exitFullscreen();

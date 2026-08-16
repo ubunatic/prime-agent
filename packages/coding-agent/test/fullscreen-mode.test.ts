@@ -83,4 +83,28 @@ describe("fullscreen mode settings", () => {
 		const reloaded = SettingsManager.create(projectDir, agentDir);
 		expect(reloaded.getFullscreenMouse()).toBe(false);
 	});
+
+	it("persists fullscreen mouse copy opt-out", async () => {
+		const manager = SettingsManager.create(projectDir, agentDir);
+		expect(manager.getFullscreenMouseCopy()).toBe(true);
+		manager.setFullscreenMouseCopy(false);
+		await manager.flush();
+
+		const settings = JSON.parse(readFileSync(join(agentDir, "settings.json"), "utf-8"));
+		expect(settings.terminal.fullscreenMouseCopy).toBe(false);
+		const reloaded = SettingsManager.create(projectDir, agentDir);
+		expect(reloaded.getFullscreenMouseCopy()).toBe(false);
+	});
+
+	it("persists wheel-only fullscreen mouse mode", async () => {
+		const manager = SettingsManager.create(projectDir, agentDir);
+		expect(manager.getFullscreenMouseButtons()).toBe(true);
+		manager.setFullscreenMouseButtons(false);
+		await manager.flush();
+
+		const settings = JSON.parse(readFileSync(join(agentDir, "settings.json"), "utf-8"));
+		expect(settings.terminal.fullscreenMouseButtons).toBe(false);
+		const reloaded = SettingsManager.create(projectDir, agentDir);
+		expect(reloaded.getFullscreenMouseButtons()).toBe(false);
+	});
 });

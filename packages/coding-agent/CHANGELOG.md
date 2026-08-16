@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Added fullscreen mouse controls, persistent selection, and Linux primary-selection copy support.
+
 - Added GitHub Releases fallback for automated artifact publishing and installer distribution in forks without Cloudflare R2 credentials.
 
 ## [0.7.3] - 2026-08-16
