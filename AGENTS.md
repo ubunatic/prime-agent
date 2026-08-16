@@ -57,6 +57,7 @@ When creating issues:
 
 When posting issue/PR comments:
 
+- When running `gh` CLI commands in a fork, set default repo first: `gh repo set-default ubunatic/prime-agent`
 - Write the full comment to a temp file and use `gh issue comment --body-file` or `gh pr comment --body-file`
 - Never pass multi-line markdown directly via `--body` in shell commands
 - Preview the exact comment text before posting
@@ -200,11 +201,14 @@ Create provider file exporting:
 
 2. **Run release script**:
    ```bash
-   npm run release:patch    # Fixes and additions
-   npm run release:minor    # API breaking changes
+   PI_SKIP_NPM_PUBLISH=1 npm run release:patch    # Fixes and additions (for fork releases)
+   npm run release:patch                          # Fixes and additions (with npm publish)
+   npm run release:minor                          # API breaking changes
    ```
 
-The script handles: version bump, CHANGELOG finalization, commit, tag, publish, and adding new `[Unreleased]` sections.
+Set `PI_SKIP_NPM_PUBLISH=1` or pass `--skip-npm-publish` to skip NPM registry publishing during fork releases.
+
+The script handles: version bump, CHANGELOG finalization, commit, tag, publish (if enabled), and adding new `[Unreleased]` sections.
 
 ## **CRITICAL** Git Rules for Parallel Agents **CRITICAL**
 
