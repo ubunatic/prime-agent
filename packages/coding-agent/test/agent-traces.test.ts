@@ -1028,13 +1028,13 @@ describe("agent trace upload", () => {
 		expect(result.results).toHaveLength(0);
 	});
 
-	it("prefers the prime-inference credential over the prime-cli config key", async () => {
+	it("prefers the prime-inference credential and does not fall back to prime-cli config key", async () => {
 		const session = writeSession(tempDir, join(tempDir, "sessions"), "credential-order-session");
 		const calls: FetchCall[] = [];
 		const configPath = join(tempDir, "prime-config.json");
 		writeFileSync(configPath, JSON.stringify({ api_key: "cli-fallback-key" }));
 
-		const result = await uploadAgentTraceFile({
+		const resultWithStored = await uploadAgentTraceFile({
 			sessionFile: session.getSessionFile(),
 			authStorage: AuthStorage.inMemory({
 				[PRIME_INFERENCE_PROVIDER_ID]: { type: "api_key", key: "inference-key" },
@@ -1046,8 +1046,20 @@ describe("agent trace upload", () => {
 			reloadConfig: false,
 		});
 
-		expect(result.status).toBe("uploaded");
+		expect(resultWithStored.status).toBe("uploaded");
 		expect(calls).toHaveLength(1);
 		expect(calls[0]?.init.headers).toMatchObject({ Authorization: "Bearer inference-key" });
+
+		const resultWithoutStored = await uploadAgentTraceFile({
+			sessionFile: session.getSessionFile(),
+			authStorage: AuthStorage.inMemory(),
+			settingsManager: SettingsManager.inMemory({ agentTraces: { enabled: true } }),
+			baseUrl: "https://api.example.test",
+			configPath,
+			fetchFn: createFetchRecorder(calls),
+			reloadConfig: false,
+		});
+
+		expect(resultWithoutStored.status).toBe("missing_credentials");
 	});
 });

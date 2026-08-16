@@ -1787,27 +1787,7 @@ export class InteractiveMode {
 			return;
 		}
 
-		const availableModels = await this.getModelCandidates();
-		if (availableModels.length > 0) {
-			await this.showConfigurationMenu("models");
-			return;
-		}
-
-		const splash = await this.showOnboardingSplash();
-		if (!splash) {
-			return;
-		}
-
-		splash.showProgress("Signing in to Prime Intellect...");
-		const authResult = await this.createAuthFlows().runPrimeInferenceLogin();
-		if (authResult.status !== "success") {
-			splash.dismiss();
-			return;
-		}
-
-		splash.showProgress("Preparing models...");
-		await this.prepareForModelSelectionAfterLogin(authResult);
-		await this.showOnboardingModelSelection(splash);
+		await this.showConfigurationMenu("models");
 	}
 
 	private getMarkdownThemeWithSettings(): MarkdownTheme {

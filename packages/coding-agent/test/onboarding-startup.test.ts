@@ -35,15 +35,15 @@ function makeState(overrides: {
 }
 
 describe("startup onboarding decision", () => {
-	test("runs onboarding on first launch with Prime CLI auth", () => {
+	test("disables forced Prime CLI splash on first launch", () => {
 		const state = makeState({
 			onboardingShown: false,
 			model: makeModel(PRIME_INFERENCE_PROVIDER_ID),
 			modelHasAuth: true,
 			primeAuthSource: "prime_cli",
 		});
-		expect(shouldRunPrimeCliOnboardingSplash(state)).toBe(true);
-		expect(shouldRunOnboarding(state)).toBe(true);
+		expect(shouldRunPrimeCliOnboardingSplash(state)).toBe(false);
+		expect(shouldRunOnboarding(state)).toBe(false);
 	});
 
 	test("runs onboarding on first launch when no model is available", () => {
