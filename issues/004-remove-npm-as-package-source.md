@@ -23,15 +23,15 @@ This document details the strategy for transitioning `prime-agent` installation 
 
 ### B. Release Script & CI Workflows (`scripts/release.mjs` & GitHub Actions)
 1. In `scripts/release.mjs`:
-   - Remove or gate `npm run publish` step (which publishes packages to `registry.npmjs.org`).
-   - Retain release tarball packaging (`release:pack`) and GitHub release tagging/uploads.
+   - Keep upstream `npm publish` code intact for seamless upstream syncing, but make it **optional** via a toggle flag or environment variable (e.g. `--skip-npm-publish` or `PI_SKIP_NPM_PUBLISH=1`).
+   - Add first-class support for a local/fork release flow (`npm run release:pack` / release tarball output) so forks can publish releases to GitHub Releases or custom servers without requiring NPM registry publishing rights.
 2. In GitHub Actions release workflow (`.github/workflows/build-binaries.yml`):
-   - Package release tarballs and upload them to GitHub Releases and the `ubunatic.com` release mirror.
-   - Do not trigger NPM registry publish steps.
+   - Support fork release builds by allowing NPM publishing to be bypassed while producing verified release tarballs and manifests for GitHub Releases and domain mirrors.
 
 ---
 
 ## 3. Execution Plan
 
-1. Update `scripts/release.mjs` to bypass NPM publishing.
-2. Ensure `install.sh` exclusively operates on GitHub release tarballs and uses NPM locally for dependency installation into `$HOME/.local`.
+1. Add `PI_SKIP_NPM_PUBLISH` environment variable check and `--skip-npm-publish` flag to `scripts/release.mjs`.
+2. Ensure `install.sh` and release packager (`scripts/pack-prime-agent-release.mjs`) work cleanly for fork-driven releases published to GitHub Releases or `ubunatic.com/prime-agent`.
+
