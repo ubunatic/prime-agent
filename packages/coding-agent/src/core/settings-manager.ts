@@ -830,10 +830,14 @@ export class SettingsManager {
 	}
 
 	getTelemetryEnabled(): boolean {
-		const globalEnabled = this.globalSettings.telemetry?.enabled ?? true;
-		const projectEnabled = this.projectSettings.telemetry?.enabled ?? true;
-		const runtimeEnabled = this.runtimeOverrides.telemetry?.enabled ?? true;
-		return globalEnabled && projectEnabled && runtimeEnabled;
+		const global = this.globalSettings.telemetry?.enabled;
+		const project = this.projectSettings.telemetry?.enabled;
+		const runtime = this.runtimeOverrides.telemetry?.enabled;
+
+		if (global === false || project === false || runtime === false) {
+			return false;
+		}
+		return global === true || project === true || runtime === true;
 	}
 
 	private getOrCreateGlobalTelemetrySettings(): TelemetrySettings {

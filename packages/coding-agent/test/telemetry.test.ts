@@ -233,6 +233,12 @@ describe("telemetry identity and transport", () => {
 });
 
 describe("telemetry controls", () => {
+	it("defaults to disabled when unconfigured in production", () => {
+		const settings = SettingsManager.inMemory();
+		vi.stubEnv("NODE_ENV", "production");
+		expect(isTelemetryEnabled(settings)).toBe(false);
+	});
+
 	it("honors settings and environment opt-outs", () => {
 		const settings = SettingsManager.inMemory({ telemetry: { enabled: true } });
 

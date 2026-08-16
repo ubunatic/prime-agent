@@ -528,6 +528,19 @@ describe("SettingsManager", () => {
 	});
 
 	describe("telemetry privacy controls", () => {
+		it("defaults to disabled when unconfigured", () => {
+			const manager = SettingsManager.create(projectDir, agentDir);
+
+			expect(manager.getTelemetryEnabled()).toBe(false);
+		});
+
+		it("enables telemetry when explicitly opted in globally", () => {
+			writeFileSync(join(agentDir, "settings.json"), JSON.stringify({ telemetry: { enabled: true } }));
+			const manager = SettingsManager.create(projectDir, agentDir);
+
+			expect(manager.getTelemetryEnabled()).toBe(true);
+		});
+
 		it("does not let project settings override a global opt-out or disclosure state", () => {
 			writeFileSync(
 				join(agentDir, "settings.json"),
