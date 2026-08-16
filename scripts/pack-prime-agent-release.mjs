@@ -330,6 +330,7 @@ function main() {
 		tarballs.map((tarball) => `${tarball.sha256}  ${tarball.file}`).join("\n") + "\n",
 	);
 	writeFileSync(join(artifactsDir, args.channel), `v${releaseVersion}\n`);
+	const manifestName = args.channel === "stable" ? "latest.json" : "beta.json";
 	const tarballRelativePath = args.baseUrl.includes("/releases/download")
 		? `v${releaseVersion}/${artifactFiles.get("coding-agent")}`
 		: `releases/v${releaseVersion}/${artifactFiles.get("coding-agent")}`;
