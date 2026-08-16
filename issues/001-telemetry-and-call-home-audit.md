@@ -2,6 +2,8 @@
 
 This document details all discovered locations where the agent / harness initiates outbound network connections ("calls home"), what data is transmitted, and step-by-step instructions for disabling or completely removing these behaviors.
 
+**Status:** Resolved (Telemetry defaulted to disabled / opt-in)
+
 ---
 
 ## 1. Summary of Outbound Network Calls

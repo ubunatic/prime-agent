@@ -2,6 +2,8 @@
 
 This document analyzes where Prime Intellect authentication (`Prime Inference` / `/login`) is triggered, where forced login prompts or default fallbacks occur, and how to make local or alternative provider configurations the default experience without requiring a Prime account.
 
+**Status:** Resolved (Forced Prime Intellect login splash & defaults disabled)
+
 ---
 
 ## 1. Context & Motivation

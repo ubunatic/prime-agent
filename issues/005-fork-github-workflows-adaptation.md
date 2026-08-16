@@ -2,6 +2,8 @@
 
 This document analyzes the existing GitHub Actions workflows in `.github/workflows/` and proposes updates to ensure clean CI execution and release publishing on the `ubunatic/prime-agent` fork without requiring third-party secrets (such as Cloudflare R2 credentials).
 
+**Status:** Open
+
 ---
 
 ## 1. Audit of Workflows

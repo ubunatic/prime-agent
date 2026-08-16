@@ -2,6 +2,8 @@
 
 This document analyzes the current `install.sh` workflow, which defaults to `npm install -g`, and presents detailed technical solutions for enabling non-global, user-space installations in `$HOME` (e.g. `~/.local`).
 
+**Status:** Resolved (install.sh updated for $HOME/.local prefix & ubunatic.com domain)
+
 ---
 
 ## 1. Current State & Problem

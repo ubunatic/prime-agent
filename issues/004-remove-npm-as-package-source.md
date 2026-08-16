@@ -2,6 +2,8 @@
 
 This document details the strategy for transitioning `prime-agent` installation away from publishing to or pulling the primary application binary from the public NPM registry, using NPM only to fetch runtime dependencies.
 
+**Status:** Resolved (Added PI_SKIP_NPM_PUBLISH toggle to scripts/release.mjs)
+
 ---
 
 ## 1. Goal & Rationale
