@@ -1,6 +1,6 @@
 import { getPiUserAgent } from "./pi-user-agent.js";
 
-const DEFAULT_PRIME_AGENT_DOWNLOAD_BASE_URL = "https://ubunatic.com/prime-agent";
+const DEFAULT_PRIME_AGENT_DOWNLOAD_BASE_URL = "https://github.com/ubunatic/prime-agent/releases/download";
 const STABLE_VERSION_MANIFEST_PATH = "latest.json";
 const BETA_VERSION_MANIFEST_PATH = "beta.json";
 const DEFAULT_VERSION_CHECK_TIMEOUT_MS = 10000;

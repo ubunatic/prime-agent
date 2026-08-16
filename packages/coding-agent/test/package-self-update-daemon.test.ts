@@ -578,6 +578,26 @@ describe("self-update daemon restart", () => {
 		expect(mockState.calls.some((call) => call.startsWith("spawn:npm "))).toBe(false);
 	});
 
+	it("does not fall back to npm when release metadata is unavailable", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn(async () => new Response(null, { status: 404 })),
+		);
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		try {
+			await expect(handlePackageCommand(["update", "--self"])).resolves.toBe(true);
+
+			expect(process.exitCode).toBe(1);
+			expect(mockState.calls.some((call) => call.startsWith("spawn:npm "))).toBe(false);
+			expect(errorSpy).toHaveBeenCalledWith(
+				expect.stringContaining("Could not resolve Prime Agent release metadata"),
+			);
+		} finally {
+			errorSpy.mockRestore();
+		}
+	});
+
 	it("does not use the no-change sentinel when interactive self-update is cancelled", async () => {
 		process.env[SELF_UPDATE_INTERACTIVE_CHILD_ENV] = "1";
 		mockState.daemonProbe = {

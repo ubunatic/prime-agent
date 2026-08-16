@@ -425,6 +425,7 @@ function printSelfUpdateFallback(command: SelfUpdateCommand): void {
 }
 
 interface SelfUpdatePlan {
+	error?: string;
 	installSpec: string;
 	packageName: string;
 	shouldRun: boolean;
@@ -437,21 +438,31 @@ function setSelfUpdateNoChangeExitCode(): void {
 }
 
 async function getSelfUpdatePlan(force: boolean): Promise<SelfUpdatePlan> {
+	let latestRelease: Awaited<ReturnType<typeof getLatestPiRelease>>;
 	try {
-		const latestRelease = await getLatestPiRelease(VERSION);
-		const packageName = latestRelease?.packageName ?? PACKAGE_NAME;
-		const installSpec = latestRelease?.installSpec ?? packageName;
-		const packageRenameRequiresUpdate = !latestRelease?.installSpec && packageName !== PACKAGE_NAME;
-		if (
-			force ||
-			!latestRelease ||
-			packageRenameRequiresUpdate ||
-			isNewerPackageVersion(latestRelease.version, VERSION)
-		) {
-			return { installSpec, packageName, shouldRun: true, targetVersion: latestRelease?.version };
-		}
+		latestRelease = await getLatestPiRelease(VERSION);
 	} catch {
-		return { installSpec: PACKAGE_NAME, packageName: PACKAGE_NAME, shouldRun: true };
+		return {
+			error: "Could not fetch Prime Agent release metadata. Check your network or PRIME_AGENT_DOWNLOAD_BASE_URL.",
+			installSpec: PACKAGE_NAME,
+			packageName: PACKAGE_NAME,
+			shouldRun: false,
+		};
+	}
+	if (!latestRelease) {
+		return {
+			error: "Could not resolve Prime Agent release metadata. Check PRIME_AGENT_DOWNLOAD_BASE_URL and try again.",
+			installSpec: PACKAGE_NAME,
+			packageName: PACKAGE_NAME,
+			shouldRun: false,
+		};
+	}
+
+	const packageName = latestRelease.packageName ?? PACKAGE_NAME;
+	const installSpec = latestRelease.installSpec ?? packageName;
+	const packageRenameRequiresUpdate = !latestRelease.installSpec && packageName !== PACKAGE_NAME;
+	if (force || packageRenameRequiresUpdate || isNewerPackageVersion(latestRelease.version, VERSION)) {
+		return { installSpec, packageName, shouldRun: true, targetVersion: latestRelease.version };
 	}
 
 	console.log(chalk.green(`${APP_NAME} is already up to date (v${VERSION})`));
@@ -1569,6 +1580,11 @@ export async function handlePackageCommand(args: string[]): Promise<boolean> {
 				if (updateTargetIncludesSelf(target)) {
 					const selfUpdatePlan = await getSelfUpdatePlan(options.force);
 					if (!selfUpdatePlan.shouldRun) {
+						if (selfUpdatePlan.error) {
+							console.error(chalk.red(selfUpdatePlan.error));
+							process.exitCode = 1;
+							return true;
+						}
 						setSelfUpdateNoChangeExitCode();
 						return true;
 					}

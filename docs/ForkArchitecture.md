@@ -9,7 +9,7 @@ This document records the current distribution architecture and operating invari
 1. **Privacy first.** Product telemetry and trace sharing are opt-in.
 2. **User-local installation.** The installer targets `$HOME/.local/bin` (or `$XDG_DATA_HOME/bin`) and does not require a global npm installation.
 3. **Direct provider onboarding.** Initial setup supports standard provider API keys without requiring a Prime Intellect account.
-4. **Flexible, secret-free-capable distribution.** The default runtime release base is `https://ubunatic.com/prime-agent`. Release builds always publish GitHub Release assets with `GITHUB_TOKEN`; R2 publication is optional and occurs only when R2 configuration is supplied.
+4. **Flexible, secret-free-capable distribution.** The default runtime release base is GitHub Releases. Release builds always publish GitHub Release assets with `GITHUB_TOKEN`; R2 publication is optional and occurs only when R2 configuration is supplied.
 
 ---
 
@@ -17,9 +17,9 @@ This document records the current distribution architecture and operating invari
 
 ### Release bases
 
-- **Runtime default:** `https://ubunatic.com/prime-agent`
-- **GitHub Releases fallback:** `https://github.com/<owner>/<repo>/releases/download`
-- **Optional mirror:** `vars.R2_PUBLIC_BASE_URL`, with R2 uploads enabled only when the necessary secrets are configured.
+- **Runtime default:** `https://github.com/ubunatic/prime-agent/releases/download`
+- **Optional custom mirror:** `PRIME_AGENT_DOWNLOAD_BASE_URL`
+- **Optional release mirror:** `vars.R2_PUBLIC_BASE_URL`, with R2 uploads enabled only when the necessary secrets are configured.
 
 The installer and version checker accept `PRIME_AGENT_DOWNLOAD_BASE_URL` to select a mirror. For custom-domain and R2 bases, stable metadata is served from `latest.json`, while artifacts are served below `releases/v<version>/`. For GitHub Releases, stable metadata is served through GitHub's `releases/latest/download/` redirect and production artifacts are served below `releases/download/v<version>/`.
 

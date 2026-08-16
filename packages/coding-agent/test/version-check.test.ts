@@ -7,7 +7,7 @@ import {
 	isNewerPackageVersion,
 } from "../src/utils/version-check.js";
 
-const defaultPrimeAgentDownloadBaseUrl = "https://ubunatic.com/prime-agent";
+const defaultPrimeAgentDownloadBaseUrl = "https://github.com/ubunatic/prime-agent/releases/download";
 const originalSkipVersionCheck = process.env.PI_SKIP_VERSION_CHECK;
 const originalOffline = process.env.PI_OFFLINE;
 const originalPrimeAgentDownloadBaseUrl = process.env.PRIME_AGENT_DOWNLOAD_BASE_URL;
@@ -51,7 +51,7 @@ describe("version checks", () => {
 
 		await expect(getLatestPiVersion("1.2.3")).resolves.toBe("1.2.4");
 		expect(fetchMock).toHaveBeenCalledWith(
-			`${defaultPrimeAgentDownloadBaseUrl}/latest.json`,
+			"https://github.com/ubunatic/prime-agent/releases/latest/download/latest.json",
 			expect.objectContaining({
 				headers: expect.objectContaining({
 					"User-Agent": expect.stringMatching(/^prime-agent\/1\.2\.3 /),
@@ -66,29 +66,13 @@ describe("version checks", () => {
 		vi.stubGlobal("fetch", fetchMock);
 
 		await expect(getLatestPiVersion("1.2.4-beta.123.1.1234567")).resolves.toBe("1.2.4-beta.124.1.abcdef0");
-		expect(fetchMock).toHaveBeenCalledWith(`${defaultPrimeAgentDownloadBaseUrl}/beta.json`, expect.any(Object));
+		expect(fetchMock).toHaveBeenCalledWith(
+			"https://github.com/ubunatic/prime-agent/releases/beta/download/beta.json",
+			expect.any(Object),
+		);
 	});
 
 	it("returns the active package and tarball install spec from the release manifest", async () => {
-		const fetchMock = vi.fn(async () =>
-			Response.json({
-				package: "prime-agent",
-				tarball: "releases/v1.2.4/prime-agent-1.2.4.tgz",
-				version: "v1.2.4",
-			}),
-		);
-		vi.stubGlobal("fetch", fetchMock);
-
-		await expect(getLatestPiRelease("1.2.3")).resolves.toEqual({
-			installSpec: `${defaultPrimeAgentDownloadBaseUrl}/releases/v1.2.4/prime-agent-1.2.4.tgz`,
-			packageName: "prime-agent",
-			version: "1.2.4",
-		});
-	});
-
-	it("resolves manifest and tarball paths properly for GitHub Releases download base URL", async () => {
-		const githubBaseUrl = "https://github.com/ubunatic/prime-agent/releases/download";
-		process.env.PRIME_AGENT_DOWNLOAD_BASE_URL = githubBaseUrl;
 		const fetchMock = vi.fn(async () =>
 			Response.json({
 				package: "prime-agent",
@@ -99,14 +83,30 @@ describe("version checks", () => {
 		vi.stubGlobal("fetch", fetchMock);
 
 		await expect(getLatestPiRelease("1.2.3")).resolves.toEqual({
-			installSpec: `${githubBaseUrl}/v1.2.4/prime-agent-1.2.4.tgz`,
+			installSpec: `${defaultPrimeAgentDownloadBaseUrl}/v1.2.4/prime-agent-1.2.4.tgz`,
 			packageName: "prime-agent",
 			version: "1.2.4",
 		});
-		expect(fetchMock).toHaveBeenCalledWith(
-			"https://github.com/ubunatic/prime-agent/releases/latest/download/latest.json",
-			expect.any(Object),
+	});
+
+	it("resolves manifest and tarball paths for a custom download base URL", async () => {
+		const customBaseUrl = "https://downloads.example.test/prime-agent";
+		process.env.PRIME_AGENT_DOWNLOAD_BASE_URL = customBaseUrl;
+		const fetchMock = vi.fn(async () =>
+			Response.json({
+				package: "prime-agent",
+				tarball: "releases/v1.2.4/prime-agent-1.2.4.tgz",
+				version: "v1.2.4",
+			}),
 		);
+		vi.stubGlobal("fetch", fetchMock);
+
+		await expect(getLatestPiRelease("1.2.3")).resolves.toEqual({
+			installSpec: `${customBaseUrl}/releases/v1.2.4/prime-agent-1.2.4.tgz`,
+			packageName: "prime-agent",
+			version: "1.2.4",
+		});
+		expect(fetchMock).toHaveBeenCalledWith(`${customBaseUrl}/latest.json`, expect.any(Object));
 	});
 
 	it("skips api calls when version checks are disabled", async () => {

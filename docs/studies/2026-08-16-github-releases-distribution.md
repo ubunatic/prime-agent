@@ -20,7 +20,7 @@ At the time, the work aimed to make release assets available without R2 credenti
 
 ## Release Behavior
 
-GitHub Releases can publish stable and beta artifact sets using the repository `GITHUB_TOKEN`. R2 publication remains available when R2 configuration is supplied. The current runtime default remains `https://ubunatic.com/prime-agent`; GitHub Releases is a supported fallback, not the exclusive release topology.
+GitHub Releases can publish stable and beta artifact sets using the repository `GITHUB_TOKEN`. R2 publication remains available when R2 configuration is supplied. After live validation found the planned custom-domain manifest unavailable, GitHub Releases became the runtime default; custom mirrors remain supported through configuration.
 
 The installer validates downloaded tarballs against `SHA256SUMS` and installs into user-local npm paths. The version-check tests cover both custom-base and GitHub Releases manifest URL schemes.
 

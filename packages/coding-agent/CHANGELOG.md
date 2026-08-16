@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Fixed self-update falling back to an unpublished npm package when the custom release domain is unavailable.
+
 ## [0.7.4] - 2026-08-16
 
 - Added fullscreen mouse controls, persistent selection, and Linux primary-selection copy support ([#8](https://github.com/ubunatic/prime-agent/issues/8)).
