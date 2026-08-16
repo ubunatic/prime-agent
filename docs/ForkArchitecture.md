@@ -1,56 +1,46 @@
 # Fork Architecture & Distribution Guide
 
-This document captures the permanent architecture, distribution design, and design decisions for the `ubunatic/prime-agent` fork.
+This document records the current distribution architecture and operating invariants for the `ubunatic/prime-agent` fork.
 
 ---
 
-## 1. Core Architectural Pillars
+## Core Architectural Pillars
 
-The fork modifies the upstream `PrimeIntellect-ai/prime-agent` codebase with four core invariants:
-
-```
-+-----------------------------------------------------------------------------------+
-|                            ubunatic/prime-agent                                   |
-+--------------------------+--------------------------------+-----------------------+
-| 1. Privacy First         | 2. User-Local Distribution     | 3. Direct Onboarding  |
-| - Telemetry: disabled    | - Target: $HOME/.local/bin     | - No forced logins    |
-|   by default (opt-in)    | - No sudo / root required      | - Standard provider   |
-| - Traces: private        | - Standalone tarball packaging |   API key selection   |
-+--------------------------+--------------------------------+-----------------------+
-|                                4. Zero-Secret CI/CD                               |
-|   - GitHub Actions publishes release tarballs directly to GitHub Releases         |
-|   - Automatic resolution of 'latest' / 'stable' via GitHub Releases API / redirect|
-|   - Optional npm publishing (PI_SKIP_NPM_PUBLISH=1)                               |
-+-----------------------------------------------------------------------------------+
-```
+1. **Privacy first.** Product telemetry and trace sharing are opt-in.
+2. **User-local installation.** The installer targets `$HOME/.local/bin` (or `$XDG_DATA_HOME/bin`) and does not require a global npm installation.
+3. **Direct provider onboarding.** Initial setup supports standard provider API keys without requiring a Prime Intellect account.
+4. **Flexible, secret-free-capable distribution.** The default runtime release base is `https://ubunatic.com/prime-agent`. Release builds always publish GitHub Release assets with `GITHUB_TOKEN`; R2 publication is optional and occurs only when R2 configuration is supplied.
 
 ---
 
-## 2. Release & Distribution Pipeline
+## Release & Distribution Pipeline
 
-### Asset Layout in GitHub Releases
-When a release tag (e.g. `v0.7.3`) is created or workflow `build-binaries.yml` is dispatched, the following assets are attached to the GitHub Release:
+### Release bases
 
-| File | Purpose |
-| :--- | :--- |
-| `prime-agent-<ver>.tgz` | Full coding-agent bundle including runtime packages. |
-| `prime-agent-ai-<ver>.tgz` | Core AI provider and model integration package. |
-| `prime-agent-core-<ver>.tgz` | Agent execution kernel and session management. |
-| `prime-agent-tui-<ver>.tgz` | Terminal UI renderer and input components. |
-| `SHA256SUMS` | Cryptographic SHA-256 manifest of all packaged tarballs. |
-| `latest.json` | Version check manifest for in-app updates. |
-| `stable` | Plain text version string (e.g., `v0.7.3`) for channel discovery. |
-| `install.sh` | Standalone installer pre-configured for that release tag. |
+- **Runtime default:** `https://ubunatic.com/prime-agent`
+- **GitHub Releases fallback:** `https://github.com/<owner>/<repo>/releases/download`
+- **Optional mirror:** `vars.R2_PUBLIC_BASE_URL`, with R2 uploads enabled only when the necessary secrets are configured.
 
-### URL Resolution Architecture
-- **Tarball Base URL**: `https://github.com/ubunatic/prime-agent/releases/download/v<version>/<tarball>`
-- **Channel Version Endpoint**: `https://github.com/ubunatic/prime-agent/releases/latest/download/stable`
-- **In-App Update Manifest**: `https://github.com/ubunatic/prime-agent/releases/latest/download/latest.json`
+The installer and version checker accept `PRIME_AGENT_DOWNLOAD_BASE_URL` to select a mirror. For custom-domain and R2 bases, stable metadata is served from `latest.json`, while artifacts are served below `releases/v<version>/`. For GitHub Releases, stable metadata is served through GitHub's `releases/latest/download/` redirect and production artifacts are served below `releases/download/v<version>/`.
+
+### Release channels and assets
+
+| Channel | GitHub Release tag | Metadata | Assets |
+| :--- | :--- | :--- | :--- |
+| Stable | `v<version>` | `stable`, `latest.json` | `prime-agent-<version>.tgz`, `prime-agent-ai-<version>.tgz`, `prime-agent-core-<version>.tgz`, `prime-agent-tui-<version>.tgz`, `SHA256SUMS`, `install.sh`, `install-beta.sh` |
+| Beta | `beta` | `beta`, `beta.json` | The same tarball, checksum, and installer asset set for the current beta build |
+
+The stable GitHub endpoints are:
+
+- Channel: `https://github.com/<owner>/<repo>/releases/latest/download/stable`
+- Manifest: `https://github.com/<owner>/<repo>/releases/latest/download/latest.json`
+- Tarball: `https://github.com/<owner>/<repo>/releases/download/v<version>/prime-agent-<version>.tgz`
+
+The beta channel metadata is served from `https://github.com/<owner>/<repo>/releases/beta/download/beta` and `beta.json`.
 
 ---
 
-## 3. Tooling & Static Analysis Invariants
+## Tooling and Verification
 
-To avoid runtime reference errors in release packaging:
-- **Biome Linter Configuration**: [`biome.json`](file:///home/uwe/git/prime-agent/biome.json) must explicitly include all scripts in `scripts/` (`scripts/**/*.ts`, `scripts/**/*.js`, `scripts/**/*.mjs`).
-- **Release Verification**: Always run `npm run check` prior to running `npm run release:patch` or `npm run release:minor`.
+- [`biome.json`](../biome.json) includes root `scripts/**/*.ts`, `scripts/**/*.js`, and `scripts/**/*.mjs` so release helpers receive static checks.
+- Run `npm run check` before release commands. Run the focused version-check tests when changing release URL handling.

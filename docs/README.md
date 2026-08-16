@@ -1,18 +1,21 @@
 # Documentation Index
 
-This directory contains evergreen architecture guides, issue indices, and engineering case studies for the `ubunatic/prime-agent` fork.
+This directory contains evergreen architecture guides and engineering case studies for the `ubunatic/prime-agent` fork. Issue trackers are maintained in the repository-root [`issues/`](../issues/) directory.
 
 ---
 
-## 🏛️ Evergreen Architecture & Design
-- [`ForkArchitecture.md`](file:///home/uwe/git/prime-agent/docs/ForkArchitecture.md) — Permanent architecture, release pipeline, and distribution invariants for the fork.
+## Evergreen Architecture and Design
+
+- [Fork Architecture & Distribution Guide](ForkArchitecture.md) — Current architecture, release pipeline, and distribution invariants.
 
 ---
 
-## 📋 Specific Issues & Audits
-- [`issues/README.md`](file:///home/uwe/git/prime-agent/issues/README.md) — Index of specific design proposals, telemetry audits, and workflow tracker issues (`001` - `005`).
+## Specific Issues and Audits
+
+- [Issue tracker index](../issues/README.md) — Design proposals, telemetry audits, workflow tracker issues, and documentation audits.
 
 ---
 
-## 🔬 Case Studies & Retrospectives
-- [`studies/2026-08-16-github-releases-distribution.md`](file:///home/uwe/git/prime-agent/docs/studies/2026-08-16-github-releases-distribution.md) — Case study: Zero-Secret Fork Releases & Distribution via GitHub Releases.
+## Case Studies and Retrospectives
+
+- [GitHub Releases distribution case study](studies/2026-08-16-github-releases-distribution.md) — Historical record of adding GitHub Releases distribution.

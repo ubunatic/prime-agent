@@ -59,7 +59,7 @@ Instead of calling `npm install -g` at all, `install.sh` can unpack the release 
 
 ### Modifying `install.sh` to use User-Local Prefix by Default
 
-In [`install.sh`](file:///home/uwe/git/prime-agent/install.sh):
+In [`install.sh`](../install.sh):
 
 1. **Update confirmation prompt & details:**
    ```bash
@@ -95,7 +95,7 @@ To allow aiming for `ubunatic.com/prime-agent` as the base download domain later
 
 ### B. Proposed Changes for Custom Domain (`ubunatic.com/prime-agent`)
 1. **Default Base URL Configuration**:
-   Update `DEFAULT_PRIME_AGENT_DOWNLOAD_BASE_URL` in [`packages/coding-agent/src/utils/version-check.ts`](file:///home/uwe/git/prime-agent/packages/coding-agent/src/utils/version-check.ts#L3) or make it configurable via build-time injection/settings file.
+   Update `DEFAULT_PRIME_AGENT_DOWNLOAD_BASE_URL` in [`packages/coding-agent/src/utils/version-check.ts`](../packages/coding-agent/src/utils/version-check.ts#L3) or make it configurable via build-time injection/settings file.
    ```ts
    const DEFAULT_PRIME_AGENT_DOWNLOAD_BASE_URL = "https://ubunatic.com/prime-agent";
    ```

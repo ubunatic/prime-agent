@@ -20,7 +20,7 @@ This document analyzes the existing GitHub Actions workflows in `.github/workflo
 ## 2. Technical Modifications Strategy
 
 ### A. Fallback Release Publishing in `build-binaries.yml`
-Updated [`build-binaries.yml`](file:///home/uwe/git/prime-agent/.github/workflows/build-binaries.yml):
+Updated [`build-binaries.yml`](../.github/workflows/build-binaries.yml):
 1. Sets `PRIME_AGENT_DOWNLOAD_BASE_URL` to `https://github.com/${{ github.repository }}/releases/download` by default.
 2. Guards R2 upload steps with `env.R2_BUCKET != '' && env.R2_ENDPOINT_URL != ''`.
 3. Attaches packaged release tarballs, manifests (`latest.json`, `beta.json`, `SHA256SUMS`), and rendered `install.sh` scripts directly to the GitHub Release via `gh release create` / `gh release upload`.
@@ -31,5 +31,5 @@ Removed `contribution-gate.yml` and eliminated the vouch dependency in `ci.yml`.
 ---
 
 ## 3. Implementation Verification
-- [`install.sh`](file:///home/uwe/git/prime-agent/install.sh), [`packages/coding-agent/src/utils/version-check.ts`](file:///home/uwe/git/prime-agent/packages/coding-agent/src/utils/version-check.ts), and [`scripts/pack-prime-agent-release.mjs`](file:///home/uwe/git/prime-agent/scripts/pack-prime-agent-release.mjs) aligned to work seamlessly with GitHub Releases tag-based asset download paths.
+- [`install.sh`](../install.sh), [`packages/coding-agent/src/utils/version-check.ts`](../packages/coding-agent/src/utils/version-check.ts), and [`scripts/pack-prime-agent-release.mjs`](../scripts/pack-prime-agent-release.mjs) aligned to work seamlessly with GitHub Releases tag-based asset download paths.
 - Unit tests verified passing in `packages/coding-agent/test/version-check.test.ts`.

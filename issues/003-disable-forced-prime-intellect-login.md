@@ -20,7 +20,7 @@ Users should be able to use `prime-agent` fully offline or with their own API ke
 ## 2. Technical Findings: Key Intervention Points
 
 ### A. Startup Onboarding (`packages/coding-agent/src/modes/interactive/onboarding.ts`)
-- **Location:** [`packages/coding-agent/src/modes/interactive/onboarding.ts`](file:///home/uwe/git/prime-agent/packages/coding-agent/src/modes/interactive/onboarding.ts)
+- **Location:** [`packages/coding-agent/src/modes/interactive/onboarding.ts`](../packages/coding-agent/src/modes/interactive/onboarding.ts)
 - **Current Behavior:** `shouldRunOnboarding()` checks if any model is configured with valid auth. If not, it runs the interactive onboarding flow, which presents Prime CLI / Prime Inference splash components (`PrimeOnboardingSplashComponent`).
 - **Proposed Modification:**
   - Skip forced login onboarding splash when `onboardingShown` is false.
