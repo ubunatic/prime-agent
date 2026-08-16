@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.7.4] - 2026-08-16
 
 - Added fullscreen mouse controls, persistent selection, and Linux primary-selection copy support ([#8](https://github.com/ubunatic/prime-agent/issues/8)).
 - Added GitHub Releases fallback for automated artifact publishing and installer distribution in forks without Cloudflare R2 credentials ([#5](https://github.com/ubunatic/prime-agent/issues/5)).
