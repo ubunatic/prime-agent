@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.7.3] - 2026-08-16
 
 - Changed product analytics telemetry to default to disabled (opt-in instead of opt-out).
 - Fixed fullscreen wheel scrolling in Ghostty while retaining application link clicks; set `terminal.fullscreenMouse` to `false` to use native Cmd-click instead.
