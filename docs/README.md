@@ -7,6 +7,7 @@ This directory contains evergreen architecture guides and engineering case studi
 ## Evergreen Architecture and Design
 
 - [Fork Architecture & Distribution Guide](ForkArchitecture.md) — Current architecture, release pipeline, and distribution invariants.
+- [Prompt Context and Continual Harness Architecture](ContextAndContinualHarness.md) — How file-backed Markdown context, skills, and local/global continual harness state combine.
 
 ---
 
