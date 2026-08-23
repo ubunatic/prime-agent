@@ -40,5 +40,31 @@ verified review.
 
 ## Conclusion
 
-No code changes needed on `sync/upstream-2026-08-23` for the v0.8.0 merge.
-Fork invariants are intact and automated verification is green.
+No code changes needed on `sync/upstream-2026-08-23` for the v0.8.0 merge
+itself. Fork invariants are intact.
+
+## Follow-up: pre-existing CI failures surfaced during verification
+
+Pushing the branch surfaced 19 `coding-agent` test failures in CI. Investigation
+(reproducing each failure at the pre-merge tip `7c244f6a7`) showed **none were
+caused by the v0.8.0 merge** — all 19 already failed before the merge. They were
+test debt from two earlier fork commits that changed production behavior
+without updating every test that asserted the old behavior:
+
+- `e2f3e3041` ("disable forced prime intellect login", closes #3) changed
+  `LOGIN_RECOVERY_MESSAGE`/`getProviderLoginHelp()` text, removed the auto
+  Prime Inference login fallback in `runOnboardingFlow`, and removed the
+  Prime Inference default-model preference in `model-resolver.ts` — but only
+  updated 2 of the ~9 affected test files.
+- `171b813a2` ("improve fullscreen text selection", fixes #8) added
+  `mouseButtons`/`mouseCopy`/`mouseKeepSelection` to `applyFullscreen`'s
+  `settingsManager` calls but missed one regression test's mock.
+
+Fixed in `a90f8a9e7`: stale assertions were updated to match intended fork
+behavior, and tests exercising now-deleted code paths (forced Prime CLI
+splash, auto Prime Inference login) were rewritten to positively assert those
+routes are *not* taken, rather than removed — see
+[`docs/ForkArchitecture.md`](../docs/ForkArchitecture.md#pitfall-test-debt-from-behavior-changing-fork-patches)
+for the general pattern and how to avoid it.
+
+**Status:** Resolved. CI green on `a90f8a9e7`.
