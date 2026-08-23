@@ -65,6 +65,9 @@ behavior, and tests exercising now-deleted code paths (forced Prime CLI
 splash, auto Prime Inference login) were rewritten to positively assert those
 routes are *not* taken, rather than removed — see
 [`docs/ForkArchitecture.md`](../docs/ForkArchitecture.md#pitfall-test-debt-from-behavior-changing-fork-patches)
-for the general pattern and how to avoid it.
+for the general pattern and how to avoid it. Follow-up tooling/process
+proposals to catch this class of bug earlier are tracked in
+[`011`](011-fork-sync-verify-test-debt-detection.md) and
+[`012`](012-invariant-file-commits-require-test-touch-gate.md).
 
 **Status:** Resolved. CI green on `a90f8a9e7`.

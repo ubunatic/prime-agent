@@ -82,3 +82,8 @@ new files covered by an invariant rule):
    test debt, not a merge regression — fix it directly rather than filing an
    upstream bug ticket.
 
+Tooling/process proposals to catch this earlier (a `fork-sync verify` heuristic warning, and a
+pre-commit gate) are tracked in
+[`issues/011`](../issues/011-fork-sync-verify-test-debt-detection.md) and
+[`issues/012`](../issues/012-invariant-file-commits-require-test-touch-gate.md).
+
