@@ -245,6 +245,25 @@ git commit
 git push origin sync/upstream-YYYY-MM-DD
 ```
 
+### Reviewing a Sync Branch
+
+`/ultrareview` diffs the current branch against `main` by default. A full upstream
+sync (e.g. merging `v0.8.0`) routinely exceeds its size limits (500 files / 8,000
+lines) because the diff includes the entire upstream merge, not just fork-authored
+changes. In that case:
+
+- Scope the review to the fork's own commits instead of the whole merge: pass the
+  pre-merge sync-branch tip as the base, e.g. `/ultrareview <pre-merge-commit-or-branch>`,
+  so the diff covers only what this fork changed on top of the upstream merge
+  (conflict resolutions, invariant fixes, doc updates).
+- For the upstream merge content itself, rely on `npm run fork-sync -- verify --run-checks`
+  and the full test suite rather than a line-by-line AI review — that's what the
+  invariant checks and CI are for.
+- If CI fails after a sync, reproduce the failure at the pre-merge tip first to tell
+  fork-authored regressions apart from genuine upstream-merge fallout before
+  investigating further (see `tools/fork-sync/invariants.go` for what's already
+  covered by automated checks).
+
 ### Manual vs. Agent Command Delegation
 
 | Command / Task | Who Runs It | Notes |
