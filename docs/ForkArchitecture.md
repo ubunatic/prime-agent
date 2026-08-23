@@ -42,5 +42,7 @@ The beta channel metadata is served from `https://github.com/<owner>/<repo>/rele
 
 ## Tooling and Verification
 
+- [`tools/fork-sync`](../tools/fork-sync): Standalone Go CLI tool managing upstream merge workflows (`status`, `start`, `verify`) and invariant integrity testing.
 - [`biome.json`](../biome.json) includes root `scripts/**/*.ts`, `scripts/**/*.js`, and `scripts/**/*.mjs` so release helpers receive static checks.
 - Run `npm run check` before release commands. Run the focused version-check tests when changing release URL handling.
+

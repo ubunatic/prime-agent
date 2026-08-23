@@ -240,6 +240,19 @@ git commit
 git push origin sync/upstream-YYYY-MM-DD
 ```
 
+### Manual vs. Agent Command Delegation
+
+| Command / Task | Who Runs It | Notes |
+| :--- | :--- | :--- |
+| `npm run fork-sync -- status` | **Human (Manual)** | Safe read-only inspection of incoming upstream commits and fork invariant file overlap. |
+| `npm run fork-sync -- verify` | **Human or Agent** | Verifies the 5 core fork invariant assertions (telemetry, installer, onboarding, releases, workflows). |
+| `npm run fork-sync -- verify --run-checks` | **Human or Agent** | Full verification gate running invariant assertions and `npm run check`. |
+| `npm run fork-sync -- start` | **Human or Agent** | Creates `sync/upstream-YYYY-MM-DD` and triggers merge. Clean merges complete automatically. |
+| **Merge Conflict Resolution** | **Agent (`merge_master`)** | Spawn an agent to resolve conflicted files preserving fork rules, without destructive git commands. |
+| **Post-Merge Audit** | **Agent (`reviewer`)** | Spawn a fresh reviewer agent to inspect diffs, verify invariant preservation, and check test passes. |
+| `git merge --ff-only sync/...` & `git push` | **Human (Manual)** | Human final sign-off to fast-forward `main` and push upstream sync releases. |
+
+
 ## **CRITICAL** Git Rules for Parallel Agents **CRITICAL**
 
 Multiple agents may work on different files in the same worktree simultaneously. You MUST follow these rules:
