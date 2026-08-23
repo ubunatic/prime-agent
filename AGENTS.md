@@ -105,28 +105,23 @@ You, yourself, are often running into a tmux session, so be careful when killing
 
 ## Changelog
 
-Location: `packages/*/CHANGELOG.md` (each package has its own)
+Location: `packages/<pkg>/.changes/<slug>.md` (one fragment file per PR per touched package)
 
 ### Format
 
-A flat list of plain bullets under `## [Unreleased]`. No `### Added` / `### Changed` / `### Fixed` / `### Removed` subsections — just one bullet per change, written as a short sentence starting with a past-tense verb (Added, Changed, Fixed, Removed). Keep each bullet to one line; describe the user-visible change, not the implementation.
+Do NOT edit `packages/*/CHANGELOG.md` directly. Instead, add a fragment file `packages/<pkg>/.changes/<slug>.md` (slug = kebab-case, branch- or ticket-derived, e.g. `eng-1234-fix-resize.md`) containing exactly the bullet line(s) for the change. Bullets are plain `- ...` lines with no `### Added` / `### Changed` / `### Fixed` / `### Removed` subsections — one bullet per change, written as a short sentence starting with a past-tense verb (Added, Changed, Fixed, Removed). Keep each bullet to one line; describe the user-visible change, not the implementation. The release script folds fragments into the release section of CHANGELOG.md and deletes them.
 
-Example of a well-formed `[Unreleased]` section:
+Example fragment (`packages/coding-agent/.changes/eng-1234-effort-command.md`):
 
 ```markdown
-## [Unreleased]
-
 - Added `/effort` to set the reasoning level, with autocomplete for the levels the current model supports.
-- Changed `prime-agent` to open a new chat by default instead of resuming the previous session.
-- Fixed onboarding showing no models after entering a provider key.
-- Removed the interactive `!` / `!!` bash shortcuts; use IPython instead.
 ```
 
 ### Rules
 
-- Read the full `[Unreleased]` section first so you don't duplicate an existing bullet
-- New entries ALWAYS go under `## [Unreleased]`
-- NEVER modify already-released version sections (e.g., `## [0.2.1]`) — each is immutable once released
+- One fragment file per PR per touched package; a fragment may contain multiple bullets
+- NEVER modify already-released version sections in CHANGELOG.md (e.g., `## [0.2.1]`) — each is immutable once released
+- Purely internal changes may opt out via the `no-changelog` PR label
 
 ### Attribution
 
@@ -184,7 +179,7 @@ Create provider file exporting:
 ### 7. Documentation
 
 - `packages/ai/README.md`: Add to providers table, document options/auth, add env vars
-- `packages/ai/CHANGELOG.md`: Add entry under `## [Unreleased]`
+- `packages/ai/.changes/<slug>.md`: Add a changelog fragment (see Changelog above)
 
 ## Releasing
 
@@ -197,7 +192,7 @@ Create provider file exporting:
 
 ### Steps
 
-1. **Update CHANGELOGs**: Ensure all changes since last release are documented in the `[Unreleased]` section of each affected package's CHANGELOG.md
+1. **Check fragments**: Ensure all changes since last release have fragment files in `packages/<pkg>/.changes/`
 
 2. **Run release script**:
    ```bash
@@ -208,7 +203,7 @@ Create provider file exporting:
 
 Set `PI_SKIP_NPM_PUBLISH=1` or pass `--skip-npm-publish` to skip NPM registry publishing during fork releases.
 
-The script handles: version bump, CHANGELOG finalization, commit, tag, publish (if enabled), and adding new `[Unreleased]` sections.
+The script handles: version bump, folding `.changes/` fragments into the release section, commit, tag, and publish (if enabled).
 
 ## Upstream Synchronization Workflow
 
@@ -231,19 +226,56 @@ To synchronize upstream updates from `PrimeIntellect-ai/prime-agent` while prese
 # 1. Inspect upstream status, incoming commits, and invariant file overlap
 npm run fork-sync -- status
 
-# 2. Create sync branch and initiate upstream merge
+# 2. Optional: Generate pre-merge analysis markdown via an external agent (codex, antigravity, agy, claude)
+npm run fork-sync -- status --agent codex
+npm run fork-sync -- status --agent antigravity
+npm run fork-sync -- status --agent claude
+
+# 3. Create sync branch and initiate upstream merge
 npm run fork-sync -- start
 
-# 3. If conflicts occur: resolve conflicts preserving fork invariants
+# 4. If conflicts occur: resolve conflicts preserving fork invariants
 git add <resolved-files>
 
-# 4. Assert invariant integrity and run repository static checks
+# 5. Assert invariant integrity and run repository static checks
 npm run fork-sync -- verify --run-checks
 
-# 5. Finalize merge commit, push branch, and open PR
+# 6. Finalize merge commit, push branch, and open PR
 git commit
 git push origin sync/upstream-YYYY-MM-DD
 ```
+
+### Reviewing a Sync Branch
+
+`/ultrareview` diffs the current branch against `main` by default. A full upstream
+sync (e.g. merging `v0.8.0`) routinely exceeds its size limits (500 files / 8,000
+lines) because the diff includes the entire upstream merge, not just fork-authored
+changes. In that case:
+
+- Scope the review to the fork's own commits instead of the whole merge: pass the
+  pre-merge sync-branch tip as the base, e.g. `/ultrareview <pre-merge-commit-or-branch>`,
+  so the diff covers only what this fork changed on top of the upstream merge
+  (conflict resolutions, invariant fixes, doc updates).
+- For the upstream merge content itself, rely on `npm run fork-sync -- verify --run-checks`
+  and the full test suite rather than a line-by-line AI review — that's what the
+  invariant checks and CI are for.
+- If CI fails after a sync, reproduce the failure at the pre-merge tip first to tell
+  fork-authored regressions apart from genuine upstream-merge fallout before
+  investigating further (see `tools/fork-sync/invariants.go` for what's already
+  covered by automated checks).
+
+### Manual vs. Agent Command Delegation
+
+| Command / Task | Who Runs It | Notes |
+| :--- | :--- | :--- |
+| `npm run fork-sync -- status` | **Human (Manual)** | Safe read-only inspection of incoming upstream commits and fork invariant file overlap. |
+| `npm run fork-sync -- verify` | **Human or Agent** | Verifies the 5 core fork invariant assertions (telemetry, installer, onboarding, releases, workflows). |
+| `npm run fork-sync -- verify --run-checks` | **Human or Agent** | Full verification gate running invariant assertions and `npm run check`. |
+| `npm run fork-sync -- start` | **Human or Agent** | Creates `sync/upstream-YYYY-MM-DD` and triggers merge. Clean merges complete automatically. |
+| **Merge Conflict Resolution** | **Agent (`merge_master`)** | Spawn an agent to resolve conflicted files preserving fork rules, without destructive git commands. |
+| **Post-Merge Audit** | **Agent (`reviewer`)** | Spawn a fresh reviewer agent to inspect diffs, verify invariant preservation, and check test passes. |
+| `git merge --ff-only sync/...` & `git push` | **Human (Manual)** | Human final sign-off to fast-forward `main` and push upstream sync releases. |
+
 
 ## **CRITICAL** Git Rules for Parallel Agents **CRITICAL**
 
@@ -278,7 +310,7 @@ git status
 
 # 2. Add ONLY your specific files
 git add packages/ai/src/providers/transform-messages.ts
-git add packages/ai/CHANGELOG.md
+git add packages/ai/.changes/eng-1234-fix-resize.md
 
 # 3. Commit
 git commit -m "fix(ai): description"

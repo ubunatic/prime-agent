@@ -13,7 +13,6 @@ const packageDirs = readdirSync(packagesDir, { withFileTypes: true })
 	.filter((dirent) => dirent.isDirectory())
 	.map((dirent) => dirent.name);
 
-// Read all package.json files and build version map
 const packages = {};
 const versionMap = {};
 
@@ -33,7 +32,6 @@ for (const [name, version] of Object.entries(versionMap).sort()) {
 	console.log(`  ${name}: ${version}`);
 }
 
-// Verify all versions are the same (lockstep)
 const versions = new Set(Object.values(versionMap));
 if (versions.size > 1) {
 	console.error("\n❌ ERROR: Not all packages have the same version!");
@@ -46,7 +44,6 @@ if (versions.size > 1) {
 
 console.log("\n✅ All packages at same version (lockstep)");
 
-// Update all inter-package dependencies
 let totalUpdates = 0;
 for (const [, pkg] of Object.entries(packages)) {
 	let updated = false;

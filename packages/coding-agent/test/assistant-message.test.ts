@@ -2,6 +2,7 @@ import type { AssistantMessage } from "@earendil-works/pi-ai";
 import { setKeybindings } from "@earendil-works/pi-tui";
 import stripAnsi from "strip-ansi";
 import { describe, expect, test } from "vitest";
+import { LOGIN_RECOVERY_MESSAGE } from "../src/core/auth-guidance.js";
 import { KeybindingsManager } from "../src/core/keybindings.js";
 import { AssistantMessageComponent, thinkingRecap } from "../src/modes/interactive/components/assistant-message.js";
 import { initTheme, theme } from "../src/modes/interactive/theme/theme.js";
@@ -111,13 +112,13 @@ describe("AssistantMessageComponent", () => {
 		const message = {
 			...createAssistantMessage([]),
 			stopReason: "error" as const,
-			errorMessage: "401 status code (no body)\n\nRun /login to update credentials.",
+			errorMessage: `401 status code (no body)\n\n${LOGIN_RECOVERY_MESSAGE}`,
 		};
 		const component = new AssistantMessageComponent(message);
-		const raw = component.render(120).join("\n");
+		const raw = component.render(200).join("\n");
 		const rendered = stripAnsi(raw);
 
-		expect(rendered).toContain("Error: 401 status code (no body) · Run /login to update credentials.");
+		expect(rendered).toContain(`Error: 401 status code (no body) · ${LOGIN_RECOVERY_MESSAGE}`);
 		expect(rendered).not.toContain("Ctrl+O to expand");
 		expect(raw).toContain(theme.getFgAnsi("error"));
 	});

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"time"
 )
 
@@ -19,23 +20,27 @@ type Config struct {
 	Fetch           bool   `json:"fetch"`
 	AllowDirty      bool   `json:"allow_dirty"`
 	RunChecks       bool   `json:"run_checks"`
+	Agent           string `json:"agent"`
+	SummaryOutput   string `json:"summary_output"`
 	JSON            bool   `json:"json"`
 	Verbose         bool   `json:"verbose"`
 }
 
 // StatusReport holds data for check/status commands.
 type StatusReport struct {
-	RepoRoot        string           `json:"repo_root"`
-	CurrentBranch   string           `json:"current_branch"`
-	UpstreamRemote  string           `json:"upstream_remote"`
-	UpstreamURL     string           `json:"upstream_url"`
-	UpstreamBranch  string           `json:"upstream_branch"`
-	WorkingTreeClean bool            `json:"working_tree_clean"`
-	IncomingCommits []CommitInfo     `json:"incoming_commits"`
-	ModifiedFiles   []InvariantMatch `json:"modified_files"`
-	InvariantCount  int              `json:"invariant_count"`
-	TotalFilesCount int              `json:"total_files_count"`
-	HasSyncPending  bool             `json:"has_sync_pending"`
+	RepoRoot         string           `json:"repo_root"`
+	CurrentBranch    string           `json:"current_branch"`
+	UpstreamRemote   string           `json:"upstream_remote"`
+	UpstreamURL      string           `json:"upstream_url"`
+	UpstreamBranch   string           `json:"upstream_branch"`
+	TargetRef        string           `json:"target_ref"`
+	WorkingTreeClean bool             `json:"working_tree_clean"`
+	IncomingCommits  []CommitInfo     `json:"incoming_commits"`
+	ModifiedFiles    []InvariantMatch `json:"modified_files"`
+	InvariantCount   int              `json:"invariant_count"`
+	TotalFilesCount  int              `json:"total_files_count"`
+	HasSyncPending   bool             `json:"has_sync_pending"`
+	SummaryFile      string           `json:"summary_file,omitempty"`
 }
 
 // RunStatus executes the status / check inspection workflow.
@@ -83,6 +88,7 @@ func RunStatus(cfg Config) error {
 
 	// 5. Inspect incoming commits and diff
 	targetRef := fmt.Sprintf("%s/%s", cfg.UpstreamRemote, cfg.UpstreamBranch)
+	report.TargetRef = targetRef
 	baseRef := cfg.LocalBaseBranch
 	if baseRef == "" {
 		baseRef = "HEAD"
@@ -122,6 +128,15 @@ func RunStatus(cfg Config) error {
 	}
 
 	report.HasSyncPending = len(commits) > 0
+
+	// 6. Generate Agent Summary if requested
+	if cfg.Agent != "" && report.HasSyncPending {
+		summaryFile, err := GeneratePreMergeSummary(cfg, report, &DefaultAgentRunner{})
+		if err != nil {
+			return err
+		}
+		report.SummaryFile = summaryFile
+	}
 
 	if cfg.JSON {
 		enc := json.NewEncoder(os.Stdout)
@@ -175,6 +190,10 @@ func RunStatus(cfg Config) error {
 				fmt.Printf("    - %s\n", f.Path)
 			}
 		}
+	}
+
+	if report.SummaryFile != "" {
+		fmt.Printf("\n  [✓] Pre-merge analysis markdown written to:\n      %s\n", report.SummaryFile)
 	}
 
 	fmt.Printf("\n  To begin sync, run:\n    tools/fork-sync start\n\n")
@@ -264,7 +283,7 @@ func RunStart(cfg Config) error {
 
 		fmt.Println("\nNext steps:")
 		fmt.Println("  1. Run static checks and tests: npm run check")
-		fmt.Println("  2. Verify invariants anytime:   tools/fork-sync verify")
+		fmt.Println("  2. Verify invariants anytime:   tools/fork-sync verify --run-checks")
 		fmt.Println("  3. Commit, push branch, and open PR.")
 		return nil
 	}
@@ -316,9 +335,8 @@ func RunStart(cfg Config) error {
 	fmt.Println("Resolution Guide:")
 	fmt.Println("  1. Inspect and edit conflicted files.")
 	fmt.Println("  2. Stage resolved files: git add <resolved-files>")
-	fmt.Println("  3. Run invariant verifier: tools/fork-sync verify")
-	fmt.Println("  4. Run repository static checks: npm run check")
-	fmt.Println("  5. Complete merge commit: git commit")
+	fmt.Println("  3. Run invariant verifier: tools/fork-sync verify --run-checks")
+	fmt.Println("  4. Complete merge commit: git commit")
 	return nil
 }
 
@@ -327,7 +345,10 @@ func RunVerify(cfg Config) error {
 	results, allPassed := VerifyAll(cfg.RepoRoot)
 
 	npmCheckPassed := true
+	interactiveTestPassed := true
 	var npmOutput string
+	var interactiveOutput string
+
 	if cfg.RunChecks {
 		if !cfg.JSON {
 			fmt.Println("[*] Executing repository static checks (npm run check)...")
@@ -340,15 +361,35 @@ func RunVerify(cfg Config) error {
 			npmCheckPassed = false
 			allPassed = false
 		}
+
+		// Run make interactive-test if Makefile exists and tmux is present
+		makefilePath := filepath.Join(cfg.RepoRoot, "Makefile")
+		if _, statErr := os.Stat(makefilePath); statErr == nil {
+			if _, lookErr := exec.LookPath("tmux"); lookErr == nil {
+				if !cfg.JSON {
+					fmt.Println("[*] Executing interactive TUI smoke test (make interactive-test)...")
+				}
+				makeCmd := exec.Command("make", "interactive-test")
+				makeCmd.Dir = cfg.RepoRoot
+				iOut, iErr := makeCmd.CombinedOutput()
+				interactiveOutput = string(iOut)
+				if iErr != nil {
+					interactiveTestPassed = false
+					allPassed = false
+				}
+			}
+		}
 	}
 
 	if cfg.JSON {
 		output := map[string]interface{}{
-			"all_passed":        allPassed,
-			"invariant_results": results,
-			"run_checks":        cfg.RunChecks,
-			"npm_check_passed":  npmCheckPassed,
-			"npm_output":        npmOutput,
+			"all_passed":              allPassed,
+			"invariant_results":       results,
+			"run_checks":              cfg.RunChecks,
+			"npm_check_passed":        npmCheckPassed,
+			"npm_output":              npmOutput,
+			"interactive_test_passed": interactiveTestPassed,
+			"interactive_output":      interactiveOutput,
 		}
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
@@ -356,7 +397,7 @@ func RunVerify(cfg Config) error {
 			return err
 		}
 		if !allPassed {
-			return fmt.Errorf("verification failed: one or more fork invariants violated")
+			return fmt.Errorf("verification failed: one or more fork invariants or checks violated")
 		}
 		return nil
 	}
@@ -383,13 +424,23 @@ func RunVerify(cfg Config) error {
 			fmt.Println("[FAIL]")
 			fmt.Printf("\n%s\n", npmOutput)
 		}
+
+		if interactiveOutput != "" {
+			fmt.Printf("  Interactive TUI smoke test (make interactive-test): ")
+			if interactiveTestPassed {
+				fmt.Println("[PASS]")
+			} else {
+				fmt.Println("[FAIL]")
+				fmt.Printf("\n%s\n", interactiveOutput)
+			}
+		}
 		fmt.Println()
 	}
 
 	if !allPassed {
-		return fmt.Errorf("verification failed: one or more fork invariants violated")
+		return fmt.Errorf("verification failed: one or more fork invariants or checks violated")
 	}
 
-	fmt.Println("All fork invariant assertions PASSED.")
+	fmt.Println("All fork invariant assertions and checks PASSED.")
 	return nil
 }

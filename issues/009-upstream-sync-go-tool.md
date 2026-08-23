@@ -1,6 +1,6 @@
 # Issue 009: Upstream Sync Helper (Go CLI) & Agent Workflow
 
-**Status:** Resolved
+**Status:** Active — core tool shipped and in use; still receiving incremental extensions (see [`011`](011-fork-sync-verify-test-debt-detection.md), [`012`](012-invariant-file-commits-require-test-touch-gate.md)).
 
 ---
 

@@ -27,7 +27,7 @@ describe("issue #4435 auth error login guidance", () => {
 		const assistantMessages = harness.session.messages.filter(
 			(message): message is AssistantMessage => message.role === "assistant",
 		);
-		expect(assistantMessages[0]?.errorMessage).toContain("Run /login to update credentials.");
+		expect(assistantMessages[0]?.errorMessage).toContain("Set an API key environment variable");
 		expect(assistantMessages[0]?.errorMessage).not.toContain("/login faux");
 	});
 
@@ -45,6 +45,6 @@ describe("issue #4435 auth error login guidance", () => {
 
 		session._addLoginGuidanceToAuthError(event);
 
-		expect(message.errorMessage).toContain("Run /login to update credentials.");
+		expect(message.errorMessage).toContain("Set an API key environment variable");
 	});
 });

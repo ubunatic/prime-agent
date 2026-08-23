@@ -78,7 +78,7 @@ describe("issue #4491 provider stale after repeated 401", () => {
 		);
 		const finalAssistant = assistantMessages[assistantMessages.length - 1];
 		expect(finalAssistant?.errorMessage).toContain("401 Unauthorized");
-		expect(finalAssistant?.errorMessage).toContain("Run /login to update credentials.");
+		expect(finalAssistant?.errorMessage).toContain("Set an API key environment variable");
 	});
 
 	it("emits stale auth source tokens for daemon clients after bare 401 auth failures", async () => {
@@ -219,7 +219,7 @@ describe("issue #4491 provider stale after repeated 401", () => {
 		);
 		const finalAssistant = assistantMessages[assistantMessages.length - 1];
 		expect(finalAssistant?.errorMessage).toContain("500 Internal Server Error");
-		expect(finalAssistant?.errorMessage).toContain("Run /login to update credentials.");
+		expect(finalAssistant?.errorMessage).toContain("Set an API key environment variable");
 	});
 
 	it("marks concrete auth failures stale when retry is disabled", async () => {
@@ -255,6 +255,6 @@ describe("issue #4491 provider stale after repeated 401", () => {
 		expect(harness.session.isRetrying).toBe(false);
 		expect(harness.eventsOfType("auto_retry_end").map((retryEvent) => retryEvent.success)).toEqual([false]);
 		expect(harness.authStorage.hasAuth(harness.getModel().provider)).toBe(false);
-		expect(message.errorMessage).toContain("Run /login to update credentials.");
+		expect(message.errorMessage).toContain("Set an API key environment variable");
 	});
 });
