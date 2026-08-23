@@ -12,3 +12,4 @@ This index tracks all specific design issues, behavioral audits, feature proposa
 | [`006`](006-documentation-distribution-audit.md) | **Fork Distribution Documentation Audit** | **Resolved** | Corrected distribution claims, portable links, and the vouch policy mismatch. |
 | [`007`](007-fullscreen-wheel-scroll-without-selection.md) | **Fullscreen Wheel Scrolling Without Selection Copy** | **Resolved** | Preserved transcript wheel scrolling while disabling in-app mouse actions. |
 | [`008`](008-fullscreen-click-selection.md) | **Fullscreen Word and Line Click Selection** | **Resolved** | Add double-click word selection and triple-click line selection to fullscreen in-app selection. |
+| [`009`](009-upstream-sync-go-tool.md) | **Upstream Sync Helper (Go CLI) & Agent Workflow** | **Resolved** | Built compiled Go CLI helper (`tools/fork-sync`) and agent instructions to inspect, branch, merge, and verify fork invariants against upstream changes. |

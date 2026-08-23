@@ -210,6 +210,41 @@ Set `PI_SKIP_NPM_PUBLISH=1` or pass `--skip-npm-publish` to skip NPM registry pu
 
 The script handles: version bump, CHANGELOG finalization, commit, tag, publish (if enabled), and adding new `[Unreleased]` sections.
 
+## Upstream Synchronization Workflow
+
+To synchronize upstream updates from `PrimeIntellect-ai/prime-agent` while preserving fork invariants:
+
+### Rules
+
+1. **Never merge `upstream/main` directly into `main`.** Always work on an isolated sync branch (e.g. `sync/upstream-YYYY-MM-DD`).
+2. **Audit incoming diffs for fork invariant overlap** before and during merge resolution.
+3. **Preserve fork architectural pillars:**
+   - Opt-in telemetry defaults (`packages/coding-agent/src/core/telemetry.ts`, `settings-manager.ts`).
+   - User-local non-sudo installer paths (`install.sh`, `install-beta.sh`).
+   - Direct provider onboarding without forced Prime Intellect login splash (`packages/coding-agent/src/modes/interactive/onboarding.ts`).
+   - Secret-free GitHub Releases artifact publishing and `PI_SKIP_NPM_PUBLISH` (`scripts/release.mjs`, `.github/workflows/build-binaries.yml`).
+4. **Verify invariants and run static checks** on the sync branch before merging into `main`.
+
+### Sync Tool Usage (`tools/fork-sync`)
+
+```bash
+# 1. Inspect upstream status, incoming commits, and invariant file overlap
+npm run fork-sync -- status
+
+# 2. Create sync branch and initiate upstream merge
+npm run fork-sync -- start
+
+# 3. If conflicts occur: resolve conflicts preserving fork invariants
+git add <resolved-files>
+
+# 4. Assert invariant integrity and run repository static checks
+npm run fork-sync -- verify --run-checks
+
+# 5. Finalize merge commit, push branch, and open PR
+git commit
+git push origin sync/upstream-YYYY-MM-DD
+```
+
 ## **CRITICAL** Git Rules for Parallel Agents **CRITICAL**
 
 Multiple agents may work on different files in the same worktree simultaneously. You MUST follow these rules:
