@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 )
 
-const version = "1.0.0"
+const version = "1.1.0"
 
 func printUsage() {
 	fmt.Printf(`fork-sync v%s - Upstream Synchronization and Invariant Verification Tool
@@ -32,6 +32,8 @@ Options:
   --no-fetch                Skip fetching upstream references
   --allow-dirty             Allow starting sync even if working tree has uncommitted changes
   --run-checks              Run 'npm run check' as part of verify command
+  --agent <agent>           Spawn external agent CLI (codex, antigravity, agy, claude) during check/status
+  --summary-output <path>   Output path for agent summary markdown (defaults to issues/upstream-sync-summary-YYYY-MM-DD.md)
   --json                    Output results in JSON format
   -v, --verbose             Enable verbose output
   -h, --help                Show help
@@ -39,6 +41,11 @@ Options:
 Examples:
   # Check incoming changes and invariant overlap
   fork-sync status
+
+  # Check incoming changes and have Codex or Claude generate a pre-merge markdown summary
+  fork-sync status --agent codex
+  fork-sync status --agent antigravity
+  fork-sync status --agent claude
 
   # Start a synchronization branch and initiate upstream merge
   fork-sync start
@@ -76,6 +83,8 @@ func main() {
 		fetch          bool
 		allowDirty     bool
 		runChecks      bool
+		agentName      string
+		summaryOutput  string
 		jsonOutput     bool
 		verbose        bool
 	)
@@ -90,6 +99,8 @@ func main() {
 	fs.BoolVar(&fetch, "fetch", true, "Fetch upstream references")
 	fs.BoolVar(&allowDirty, "allow-dirty", false, "Allow dirty working tree")
 	fs.BoolVar(&runChecks, "run-checks", false, "Run npm run check during verify")
+	fs.StringVar(&agentName, "agent", "", "Agent CLI to spawn (codex, antigravity, agy, claude)")
+	fs.StringVar(&summaryOutput, "summary-output", "", "Output path for summary markdown")
 	fs.BoolVar(&jsonOutput, "json", false, "Output JSON")
 	fs.BoolVar(&verbose, "verbose", false, "Verbose output")
 	fs.BoolVar(&verbose, "v", false, "Verbose output")
@@ -130,6 +141,8 @@ func main() {
 		Fetch:           shouldFetch,
 		AllowDirty:      allowDirty,
 		RunChecks:       runChecks,
+		Agent:           agentName,
+		SummaryOutput:   summaryOutput,
 		JSON:            jsonOutput,
 		Verbose:         verbose,
 	}

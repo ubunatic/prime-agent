@@ -226,16 +226,21 @@ To synchronize upstream updates from `PrimeIntellect-ai/prime-agent` while prese
 # 1. Inspect upstream status, incoming commits, and invariant file overlap
 npm run fork-sync -- status
 
-# 2. Create sync branch and initiate upstream merge
+# 2. Optional: Generate pre-merge analysis markdown via an external agent (codex, antigravity, agy, claude)
+npm run fork-sync -- status --agent codex
+npm run fork-sync -- status --agent antigravity
+npm run fork-sync -- status --agent claude
+
+# 3. Create sync branch and initiate upstream merge
 npm run fork-sync -- start
 
-# 3. If conflicts occur: resolve conflicts preserving fork invariants
+# 4. If conflicts occur: resolve conflicts preserving fork invariants
 git add <resolved-files>
 
-# 4. Assert invariant integrity and run repository static checks
+# 5. Assert invariant integrity and run repository static checks
 npm run fork-sync -- verify --run-checks
 
-# 5. Finalize merge commit, push branch, and open PR
+# 6. Finalize merge commit, push branch, and open PR
 git commit
 git push origin sync/upstream-YYYY-MM-DD
 ```

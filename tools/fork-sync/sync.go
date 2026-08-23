@@ -19,23 +19,27 @@ type Config struct {
 	Fetch           bool   `json:"fetch"`
 	AllowDirty      bool   `json:"allow_dirty"`
 	RunChecks       bool   `json:"run_checks"`
+	Agent           string `json:"agent"`
+	SummaryOutput   string `json:"summary_output"`
 	JSON            bool   `json:"json"`
 	Verbose         bool   `json:"verbose"`
 }
 
 // StatusReport holds data for check/status commands.
 type StatusReport struct {
-	RepoRoot        string           `json:"repo_root"`
-	CurrentBranch   string           `json:"current_branch"`
-	UpstreamRemote  string           `json:"upstream_remote"`
-	UpstreamURL     string           `json:"upstream_url"`
-	UpstreamBranch  string           `json:"upstream_branch"`
-	WorkingTreeClean bool            `json:"working_tree_clean"`
-	IncomingCommits []CommitInfo     `json:"incoming_commits"`
-	ModifiedFiles   []InvariantMatch `json:"modified_files"`
-	InvariantCount  int              `json:"invariant_count"`
-	TotalFilesCount int              `json:"total_files_count"`
-	HasSyncPending  bool             `json:"has_sync_pending"`
+	RepoRoot         string           `json:"repo_root"`
+	CurrentBranch    string           `json:"current_branch"`
+	UpstreamRemote   string           `json:"upstream_remote"`
+	UpstreamURL      string           `json:"upstream_url"`
+	UpstreamBranch   string           `json:"upstream_branch"`
+	TargetRef        string           `json:"target_ref"`
+	WorkingTreeClean bool             `json:"working_tree_clean"`
+	IncomingCommits  []CommitInfo     `json:"incoming_commits"`
+	ModifiedFiles    []InvariantMatch `json:"modified_files"`
+	InvariantCount   int              `json:"invariant_count"`
+	TotalFilesCount  int              `json:"total_files_count"`
+	HasSyncPending   bool             `json:"has_sync_pending"`
+	SummaryFile      string           `json:"summary_file,omitempty"`
 }
 
 // RunStatus executes the status / check inspection workflow.
@@ -83,6 +87,7 @@ func RunStatus(cfg Config) error {
 
 	// 5. Inspect incoming commits and diff
 	targetRef := fmt.Sprintf("%s/%s", cfg.UpstreamRemote, cfg.UpstreamBranch)
+	report.TargetRef = targetRef
 	baseRef := cfg.LocalBaseBranch
 	if baseRef == "" {
 		baseRef = "HEAD"
@@ -122,6 +127,15 @@ func RunStatus(cfg Config) error {
 	}
 
 	report.HasSyncPending = len(commits) > 0
+
+	// 6. Generate Agent Summary if requested
+	if cfg.Agent != "" && report.HasSyncPending {
+		summaryFile, err := GeneratePreMergeSummary(cfg, report, &DefaultAgentRunner{})
+		if err != nil {
+			return err
+		}
+		report.SummaryFile = summaryFile
+	}
 
 	if cfg.JSON {
 		enc := json.NewEncoder(os.Stdout)
@@ -175,6 +189,10 @@ func RunStatus(cfg Config) error {
 				fmt.Printf("    - %s\n", f.Path)
 			}
 		}
+	}
+
+	if report.SummaryFile != "" {
+		fmt.Printf("\n  [✓] Pre-merge analysis markdown written to:\n      %s\n", report.SummaryFile)
 	}
 
 	fmt.Printf("\n  To begin sync, run:\n    tools/fork-sync start\n\n")

@@ -24,6 +24,16 @@ func (m *mockGitRunner) Run(dir string, args ...string) (string, error) {
 	return m.responses[cmdKey], nil
 }
 
+func (m *mockGitRunner) GetDiffStat(repoRoot, baseRef, targetRef string) (string, error) {
+	if err, ok := m.errors["diff_stat"]; ok {
+		return "", err
+	}
+	if res, ok := m.responses["diff_stat"]; ok {
+		return res, nil
+	}
+	return "5 files changed, 20 insertions(+), 5 deletions(-)", nil
+}
+
 func TestGitFindRepoRoot(t *testing.T) {
 	cwd, err := os.Getwd()
 	if err != nil {

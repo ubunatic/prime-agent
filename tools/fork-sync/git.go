@@ -26,6 +26,7 @@ type MergeResult struct {
 // GitRunner abstracts git command execution for testing and runtime.
 type GitRunner interface {
 	Run(dir string, args ...string) (string, error)
+	GetDiffStat(repoRoot, baseRef, targetRef string) (string, error)
 }
 
 // ExecGitRunner executes git commands via os/exec.
@@ -50,7 +51,20 @@ func (e ExecGitRunner) Run(dir string, args ...string) (string, error) {
 	return stdout.String(), nil
 }
 
+func (e ExecGitRunner) GetDiffStat(repoRoot, baseRef, targetRef string) (string, error) {
+	rangeSpec := fmt.Sprintf("%s...%s", baseRef, targetRef)
+	out, err := e.Run(repoRoot, "diff", "--stat", rangeSpec)
+	if err != nil {
+		out, err = e.Run(repoRoot, "diff", "--stat", fmt.Sprintf("%s..%s", baseRef, targetRef))
+		if err != nil {
+			return "", err
+		}
+	}
+	return strings.TrimSpace(out), nil
+}
+
 var defaultGitRunner GitRunner = ExecGitRunner{}
+var GitRunnerDefault = ExecGitRunner{}
 
 // FindRepoRoot returns the top-level repository root directory.
 func FindRepoRoot(startDir string) (string, error) {
