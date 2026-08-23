@@ -170,6 +170,8 @@ func GeneratePreMergeSummary(cfg Config, report StatusReport, runner AgentRunner
 	if outputPath == "" {
 		dateStr := time.Now().Format("2006-01-02")
 		outputPath = filepath.Join(cfg.RepoRoot, "issues", fmt.Sprintf("upstream-sync-summary-%s.md", dateStr))
+	} else if !filepath.IsAbs(outputPath) {
+		outputPath = filepath.Join(cfg.RepoRoot, outputPath)
 	}
 
 	targetRef := report.TargetRef
@@ -190,6 +192,11 @@ func GeneratePreMergeSummary(cfg Config, report StatusReport, runner AgentRunner
 	output, err := runner.RunPrompt(agent, prompt, cfg.RepoRoot)
 	if err != nil {
 		return "", fmt.Errorf("agent %s failed to generate summary: %w", agent, err)
+	}
+
+	// Ensure parent directories exist
+	if err := os.MkdirAll(filepath.Dir(outputPath), 0755); err != nil {
+		return "", fmt.Errorf("failed to create directory for %s: %w", outputPath, err)
 	}
 
 	// Check if file was written by agent; if not, write agent stdout to the target path
