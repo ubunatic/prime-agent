@@ -3925,10 +3925,13 @@ describe("InteractiveMode Prime CLI onboarding", () => {
 		return fakeThis;
 	}
 
-	test("shows onboarding when the selected Prime model is backed by Prime CLI auth", () => {
+	// shouldRunPrimeCliOnboardingSplash() is hardcoded to false in this fork (closes #3), so the
+	// forced-splash / auto-login branches below are unreachable via the default argument in
+	// production; they are exercised here only by passing showPrimeCliSplash explicitly.
+	test("does not force onboarding when the selected Prime model already has Prime CLI auth", () => {
 		const fakeThis = createPrimeCliHarness(false);
 
-		expect(shouldRunOnboarding.call(fakeThis)).toBe(true);
+		expect(shouldRunOnboarding.call(fakeThis)).toBe(false);
 		expect(fakeThis.uiServices.modelRegistry.refresh).toHaveBeenCalledTimes(1);
 	});
 
@@ -3950,6 +3953,7 @@ describe("InteractiveMode Prime CLI onboarding", () => {
 		let shown = false;
 		let flushed = false;
 		const fakeThis = createPrimeCliHarness(false);
+		fakeThis.uiServices.modelRegistry.hasConfiguredAuth = vi.fn(() => false);
 		fakeThis.uiServices.settingsManager.getOnboardingShown = vi.fn(() => shown);
 		fakeThis.uiServices.settingsManager.setOnboardingShown = vi.fn((nextShown: boolean) => {
 			shown = nextShown;
@@ -3958,7 +3962,7 @@ describe("InteractiveMode Prime CLI onboarding", () => {
 			flushed = true;
 		});
 		fakeThis.runOnboardingFlow = vi.fn(async (showPrimeCliSplash?: boolean) => {
-			expect(showPrimeCliSplash).toBe(true);
+			expect(showPrimeCliSplash).toBe(false);
 			expect(shown).toBe(true);
 			expect(flushed).toBe(true);
 		});
@@ -3967,7 +3971,7 @@ describe("InteractiveMode Prime CLI onboarding", () => {
 
 		expect(fakeThis.uiServices.settingsManager.setOnboardingShown).toHaveBeenCalledWith(true);
 		expect(fakeThis.uiServices.settingsManager.flush).toHaveBeenCalledTimes(1);
-		expect(fakeThis.runOnboardingFlow).toHaveBeenCalledWith(true);
+		expect(fakeThis.runOnboardingFlow).toHaveBeenCalledWith(false);
 	});
 
 	test("cancelled Prime CLI splash exits onboarding before opening configuration", async () => {
@@ -3975,7 +3979,7 @@ describe("InteractiveMode Prime CLI onboarding", () => {
 		fakeThis.showOnboardingSplash = vi.fn(async () => undefined);
 		fakeThis.showConfigurationMenu = vi.fn(async () => {});
 
-		await expect(runOnboardingFlow.call(fakeThis)).resolves.toBeUndefined();
+		await expect(runOnboardingFlow.call(fakeThis, true)).resolves.toBeUndefined();
 
 		expect(fakeThis.showConfigurationMenu).not.toHaveBeenCalled();
 	});
@@ -3987,7 +3991,7 @@ describe("InteractiveMode Prime CLI onboarding", () => {
 		fakeThis.showOnboardingSplash = vi.fn(async () => ({ showProgress: vi.fn(), dismiss }));
 		fakeThis.showConfigurationMenu = vi.fn(() => configuration.promise);
 
-		const onboarding = runOnboardingFlow.call(fakeThis);
+		const onboarding = runOnboardingFlow.call(fakeThis, true);
 		await flushAsyncWork();
 
 		expect(fakeThis.showConfigurationMenu).toHaveBeenCalledWith("models");
@@ -3999,52 +4003,16 @@ describe("InteractiveMode Prime CLI onboarding", () => {
 		expect(dismiss).toHaveBeenCalledTimes(1);
 	});
 
-	test("opens the Models tab when models are already available", async () => {
+	test("opens the Models tab directly when the Prime CLI splash is disabled", async () => {
 		const fakeThis = createPrimeCliHarness(false);
 		fakeThis.connectionState = createConnectionState({ model: undefined });
-		fakeThis.getModelCandidates = vi.fn(async () => [primeModel]);
+		fakeThis.showOnboardingSplash = vi.fn();
 		fakeThis.showConfigurationMenu = vi.fn(async () => {});
 
 		await expect(runOnboardingFlow.call(fakeThis, false)).resolves.toBeUndefined();
 
-		expect(fakeThis.getModelCandidates).toHaveBeenCalledTimes(1);
+		expect(fakeThis.showOnboardingSplash).not.toHaveBeenCalled();
 		expect(fakeThis.showConfigurationMenu).toHaveBeenCalledWith("models");
-	});
-
-	test("opens Prime login before the Models tab when no models are available", async () => {
-		const fakeThis = createPrimeCliHarness(false);
-		fakeThis.connectionState = createConnectionState({ model: undefined });
-		fakeThis.getModelCandidates = vi.fn(async () => []);
-		const showProgress = vi.fn();
-		const dismiss = vi.fn();
-		fakeThis.showOnboardingSplash = vi.fn(async () => ({ showProgress, dismiss }));
-		fakeThis.createAuthFlows = vi.fn(() => ({
-			runPrimeInferenceLogin: vi.fn(async () => ({
-				status: "success" as const,
-				providerId: PRIME_INFERENCE_PROVIDER_ID,
-				providerName: "Prime Inference",
-				authType: "api_key" as const,
-				kind: "provider" as const,
-			})),
-		}));
-		fakeThis.prepareForModelSelectionAfterLogin = vi.fn(async () => true);
-		const configuration = createDeferred<void>();
-		fakeThis.showConfigurationMenu = vi.fn(() => configuration.promise);
-
-		const onboarding = runOnboardingFlow.call(fakeThis, false);
-		await flushAsyncWork();
-
-		expect(fakeThis.showOnboardingSplash).toHaveBeenCalledWith();
-		expect(showProgress).toHaveBeenNthCalledWith(1, "Signing in to Prime Intellect...");
-		expect(showProgress).toHaveBeenNthCalledWith(2, "Preparing models...");
-		expect(fakeThis.prepareForModelSelectionAfterLogin).toHaveBeenCalledTimes(1);
-		expect(fakeThis.showConfigurationMenu).toHaveBeenCalledWith("models");
-		expect(dismiss).not.toHaveBeenCalled();
-
-		configuration.resolve();
-		await expect(onboarding).resolves.toBeUndefined();
-
-		expect(dismiss).toHaveBeenCalledTimes(1);
 	});
 });
 

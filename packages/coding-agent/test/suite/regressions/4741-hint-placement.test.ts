@@ -112,7 +112,14 @@ describe("ENG-4741 hint placement", () => {
 				widgetContainerBelow,
 				promptDock,
 				ui: { enterFullscreen },
-				uiServices: { settingsManager: { getFullscreenMouse: () => true } },
+				uiServices: {
+					settingsManager: {
+						getFullscreenMouse: () => true,
+						getFullscreenMouseButtons: () => true,
+						getFullscreenMouseCopy: () => true,
+						getFullscreenMouseKeepSelection: () => false,
+					},
+				},
 			});
 
 			callPrivate(mode, "applyFullscreen", true);
@@ -130,6 +137,9 @@ describe("ENG-4741 hint placement", () => {
 				],
 				dock: promptDock,
 				mouse: true,
+				mouseButtons: true,
+				mouseCopy: true,
+				mouseKeepSelection: false,
 			});
 			expect(promptDock.children).not.toContain(featureHintContainer);
 		} finally {

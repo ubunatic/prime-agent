@@ -70,19 +70,18 @@ describe("ENG-4658 onboarding transitions", () => {
 		}
 	});
 
-	test("keeps the splash mounted until first-launch model selection closes", async () => {
+	// The forced Prime CLI splash / auto Prime Inference login flow is disabled in this fork
+	// (closes #3): with showPrimeCliSplash=false, onboarding opens the Models tab directly
+	// instead of showing a splash and attempting an automatic login.
+	test("opens the Models tab directly on first launch instead of forcing a Prime Intellect login splash", async () => {
 		const harness = await createHarness({ provider: "prime-inference", withConfiguredAuth: false });
 		harnesses.push(harness);
 		const order: string[] = [];
 		const configuration = deferred<void>();
-		const splash: OnboardingSplashHandle = {
-			showProgress: (message) => order.push(`progress:${message}`),
-			dismiss: () => order.push("dismiss"),
-		};
 		const fakeThis = Object.create(InteractiveMode.prototype) as InteractiveOnboardingHarness;
 		fakeThis.uiServices = { modelRegistry: harness.session.modelRegistry };
 		fakeThis.getModelCandidates = vi.fn(async () => []);
-		fakeThis.showOnboardingSplash = vi.fn(async () => splash);
+		fakeThis.showOnboardingSplash = vi.fn();
 		fakeThis.createAuthFlows = vi.fn(() => ({
 			runPrimeInferenceLogin: async (): Promise<AuthenticationResult> => {
 				order.push("login");
@@ -107,19 +106,13 @@ describe("ENG-4658 onboarding transitions", () => {
 		const onboarding = fakeThis.runOnboardingFlow(false);
 		await vi.waitFor(() => expect(fakeThis.showConfigurationMenu).toHaveBeenCalledWith("models"));
 
-		expect(order).not.toContain("dismiss");
 		configuration.resolve();
 		await onboarding;
 
-		expect(fakeThis.showOnboardingSplash).toHaveBeenCalledWith();
-		expect(order).toEqual([
-			"progress:Signing in to Prime Intellect...",
-			"login",
-			"progress:Preparing models...",
-			"prepare",
-			"configuration:models",
-			"dismiss",
-		]);
+		expect(fakeThis.showOnboardingSplash).not.toHaveBeenCalled();
+		expect(fakeThis.getModelCandidates).not.toHaveBeenCalled();
+		expect(fakeThis.createAuthFlows).not.toHaveBeenCalled();
+		expect(order).toEqual(["configuration:models"]);
 	});
 
 	test("keeps the configuration overlay mounted while provider authentication is pending", async () => {

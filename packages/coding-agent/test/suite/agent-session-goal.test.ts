@@ -5,6 +5,7 @@ import { type AssistantMessage, fauxAssistantMessage, fauxToolCall, type Usage }
 import { Type } from "typebox";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AgentSession } from "../../src/core/agent-session.js";
+import { LOGIN_RECOVERY_MESSAGE } from "../../src/core/auth-guidance.js";
 import { AuthStorage } from "../../src/core/auth-storage.js";
 import type { ExtensionFactory } from "../../src/core/extensions/types.js";
 import type { GoalHostResponse } from "../../src/core/goals.js";
@@ -789,7 +790,7 @@ describe("AgentSession goals", () => {
 		expect(harness.session.goalState).toMatchObject({
 			active: false,
 			status: "error",
-			lastError: "invalid_api_key\n\nRun /login to update credentials.",
+			lastError: `invalid_api_key\n\n${LOGIN_RECOVERY_MESSAGE}`,
 		});
 		expect(harness.getPendingResponseCount()).toBe(0);
 	});
