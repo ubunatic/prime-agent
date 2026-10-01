@@ -355,14 +355,24 @@ mod tests {
         });
     }
 
-    /// Default-on: a fresh install resolves enabled (telemetry stays on by
-    /// default, matching the TS posture) with the env overrides cleared.
+    /// A fresh install keeps telemetry off until an explicit settings opt-in.
     #[test]
-    fn telemetry_defaults_on() {
+    fn telemetry_defaults_off() {
         with_clean_telemetry_env(|| {
             let dir = tempfile::tempdir().unwrap();
             let agent_dir = dir.path().join("agent");
             let settings = pa_core::settings::SettingsManager::create(dir.path(), agent_dir);
+            assert!(telemetry_disabled(&settings));
+        });
+    }
+
+    #[test]
+    fn telemetry_can_be_explicitly_enabled() {
+        with_clean_telemetry_env(|| {
+            let dir = tempfile::tempdir().unwrap();
+            let agent_dir = dir.path().join("agent");
+            let mut settings = pa_core::settings::SettingsManager::create(dir.path(), agent_dir);
+            settings.set_telemetry_enabled(true).unwrap();
             assert!(!telemetry_disabled(&settings));
         });
     }

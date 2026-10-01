@@ -913,7 +913,7 @@ impl SettingsManager {
         self.merged.transport.unwrap_or(TransportSetting::Auto)
     }
 
-    /// Telemetry is enabled only when every scope says so (default true).
+    /// Telemetry requires an explicit opt-in; every configured scope must allow it.
     #[must_use]
     pub fn get_telemetry_enabled(&self) -> bool {
         [
@@ -922,7 +922,9 @@ impl SettingsManager {
             self.runtime_overrides.telemetry.as_ref(),
         ]
         .iter()
-        .all(|scope| scope.and_then(|t| t.enabled).unwrap_or(true))
+        .filter_map(|scope| scope.and_then(|settings| settings.enabled))
+        .reduce(|enabled, scope_enabled| enabled && scope_enabled)
+        .unwrap_or(false)
     }
 
     #[must_use]
