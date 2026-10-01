@@ -220,7 +220,9 @@ impl OnboardingScreen {
         if let Some(panel) = self.panel.as_mut() {
             return panel.handle_key(key, kb, osc_sink);
         }
-        // Enter starts the provider setup flow.
+        // The welcome screen binds one key: Enter starts the flow (TS:
+        // cancel is deliberately unbound — signing in is the only way
+        // forward).
         if !self.flow_started && kb.matches(key, "tui.select.confirm") {
             return Some(OnboardingDecision::Begin);
         }
@@ -709,7 +711,7 @@ mod tests {
             panel: std::boxed::Box::new(crate::auth_panel::AuthPanel::onboarding(
                 "Login to Prime Inference",
             )),
-            heading: Some("Login with Prime Intellect".to_string()),
+            heading: Some(crate::onboarding_flow::PRIME_LOGIN_HEADING.to_string()),
         });
         screen.apply_auth_request(crate::auth_panel::AuthPanelRequest::Progress {
             message: "Generating the browser challenge...".to_string(),
@@ -768,7 +770,7 @@ mod tests {
             panel: std::boxed::Box::new(crate::auth_panel::AuthPanel::onboarding(
                 "Login to GitHub Copilot",
             )),
-            heading: Some("Login with Prime Intellect".to_string()),
+            heading: Some(crate::onboarding_flow::PRIME_LOGIN_HEADING.to_string()),
         });
         screen.apply_auth_request(crate::auth_panel::AuthPanelRequest::AuthUrl {
             url: "https://fixture.example/device".to_string(),
@@ -814,7 +816,7 @@ mod tests {
             panel: std::boxed::Box::new(crate::auth_panel::AuthPanel::onboarding(
                 "Login to Prime Inference",
             )),
-            heading: Some("Login with Prime Intellect".to_string()),
+            heading: Some(crate::onboarding_flow::PRIME_LOGIN_HEADING.to_string()),
         });
         let (reply, answer) = tokio::sync::oneshot::channel();
         screen.apply_auth_request(AuthPanelRequest::SelectTeam {

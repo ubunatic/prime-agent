@@ -13,8 +13,10 @@ change and whether its behavior still applies to this fork.
 - `865c83c24` — disabled telemetry by default. Still needed; Rust now defaults
   telemetry off and permits an explicit settings opt-in.
 - `e2f3e3041` — removed the forced Prime Intellect login from first-run setup.
-  Still needed; Rust now opens provider choice first, with Prime Inference as an
-  optional provider.
+  No Rust code patch is needed: a pre-seeded `settings.json` with
+  `{"onboardingShown":true,"agentTraces":{"enabled":false}}` skips both
+  first-run dialogs while leaving providers available through `/login` and
+  trace sharing off until explicitly enabled through `/traces` or settings.
 
 ## Release, packaging, and CI
 
@@ -112,6 +114,13 @@ change and whether its behavior still applies to this fork.
 - `cea733206` — added a TS `[Unreleased]` section; bookkeeping only.
 - `b57666f68` — prepared TS release v0.7.3; historical release record.
 
+## Current Rust fork patches
+
+- Telemetry defaults off until explicitly enabled in settings. This is the
+  only runtime patch carried forward from the TypeScript fork history.
+- No forced-login patch is needed: the settings seed documented above marks
+  onboarding complete and keeps trace sharing disabled without changing
+  upstream onboarding code.
+
 The earlier TypeScript fork history remains reachable through the merge
-commit's first parent. Only the telemetry default and provider-first onboarding
-behavior were carried into Rust for this update.
+commit's first parent.

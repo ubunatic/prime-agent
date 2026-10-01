@@ -430,12 +430,17 @@ pub(super) async fn run_onboarding_phase(
         return Ok(false);
     }
 
-    // The full first-launch flow begins with provider choice. Prime
-    // Inference remains available in the picker, but is not required.
+    // The full flow (TS `runOnboardingFlow`'s not-ready branch): one
+    // sequence for every first launch. Signing in is instant when a
+    // Prime CLI token is already on disk, so users who arrive with
+    // credentials still reach the same account, provider and trace
+    // questions. A flow that aborts (a cancelled or failed sign-in,
+    // the exit keys) leaves the marker unset — the next launch retries.
     let screen = crate::onboarding::OnboardingScreen::welcome();
     let (mut screen, outcome) =
         drive_onboarding_pane(view, &mut *drive, screen, None, &mut session.osc_sink).await?;
-    // Enter opens provider setup.
+    // The welcome binds one key: Enter starts the flow (TS: cancel is
+    // deliberately unbound — signing in is the only way forward).
     match outcome {
         PaneOutcome::InputClosed => return Ok(false),
         PaneOutcome::Decision(crate::onboarding::OnboardingDecision::Exit) => return Ok(true),
@@ -450,15 +455,141 @@ pub(super) async fn run_onboarding_phase(
         }
     }
 
+    // The Prime Inference sign-in (TS `runPrimeInferenceLogin`) through
+    // the inline auth panel, over the composition root's auth surface.
     let Some(provider_auth) = task.provider_auth.clone() else {
-        // No auth surface means the flow cannot configure a provider.
+        // No auth surface means no sign-in: the flow aborts and the
+        // marker stays unset (the product always provides the surface).
         return Ok(false);
     };
-    // The provider picker stays mounted between logins so several can
-    // connect in one pass, with fresh connected marks after each one.
+    let prime_row = provider_auth
+        .0
+        .login_options()
+        .await
+        .into_iter()
+        .find(|row| row.id == crate::provider_auth::PRIME_INFERENCE_PROVIDER_ID);
+    let Some(prime_row) = prime_row else {
+        // A composition root without the Prime row has no sign-in to run.
+        return Ok(false);
+    };
+    let prime_panel = session.auth_panel_handle();
+    let prime_cancel = prime_panel.cancel_signal();
+    // TS `loginDialogOptions()`'s onboarding shape: the panel mounts
+    // chrome-less (`topRule: false, hideTitle: true`) — the splash's
+    // heading names the step — and the actions row reads the same
+    // resolved keybindings the pane answers with; the panel carries the
+    // flow's cancel signal, so the row's cancel hint ends the login (TS
+    // the dialog's abort signal).
+    let mut prime_dialog =
+        crate::auth_panel::AuthPanel::onboarding(format!("Login to {}", prime_row.name));
+    prime_dialog.set_cancel_signal(prime_cancel.clone());
+    screen.mount_panel(crate::onboarding_flow::OnboardingPanel::Auth {
+        panel: std::boxed::Box::new(prime_dialog),
+        heading: Some(crate::onboarding_flow::PRIME_LOGIN_HEADING.to_string()),
+    });
+    let prime_row_for_flow = prime_row.clone();
+    let prime_auth = provider_auth.clone();
+    let prime_flow = OnboardingFlowTask::spawn(
+        async move {
+            prime_auth
+                .0
+                .login_on_panel(&prime_row_for_flow, prime_panel)
+                .await
+        },
+        prime_cancel,
+    );
+    let (mut screen, outcome) = drive_onboarding_pane(
+        view,
+        &mut *drive,
+        screen,
+        Some(prime_flow),
+        &mut session.osc_sink,
+    )
+    .await?;
+    // The dialog consumes every key itself; only the flow settling or
+    // the exit keys can end the drive.
+    let login = match outcome {
+        PaneOutcome::InputClosed => return Ok(false),
+        PaneOutcome::Decision(crate::onboarding::OnboardingDecision::Exit) => return Ok(true),
+        PaneOutcome::Flow(result) => result.unwrap_or_else(|_| {
+            crate::provider_auth::ProviderAuthOutcome::Error(
+                "the Prime Inference login task failed".to_string(),
+            )
+        }),
+        PaneOutcome::Decision(_) => {
+            unreachable!("the login dialog yields no decisions")
+        }
+    };
+    match login {
+        // The status row lands behind the pane (the session transcript
+        // renders it once the flow dismisses).
+        crate::provider_auth::ProviderAuthOutcome::Status(message) => {
+            session
+                .apply_auth_outcome(
+                    crate::provider_auth::ProviderAuthOutcome::Status(message),
+                    crate::provider_auth::PRIME_INFERENCE_PROVIDER_ID,
+                    view,
+                )
+                .await;
+        }
+        // A failed or cancelled sign-in aborts the flow: the marker
+        // stays unset and the next launch retries (TS `authResult.status
+        // !== "success"`).
+        outcome => {
+            session
+                .apply_auth_outcome(
+                    outcome,
+                    crate::provider_auth::PRIME_INFERENCE_PROVIDER_ID,
+                    view,
+                )
+                .await;
+            return Ok(false);
+        }
+    }
+
+    // The default-model apply (TS `prepareForModelSelectionAfterLogin`):
+    // only a home with no current model picks the Prime default. The
+    // daemon resolves the model against its own registry — read fresh at
+    // the switch, so the just-stored credential is what makes GLM 5.3
+    // available (the client's startup snapshot predates the sign-in and
+    // never carries it). A resolution failure surfaces as the switch's
+    // error row and the flow still completes.
+    if task.current_model.is_none() {
+        session
+            .apply_model_selection(
+                crate::provider_auth::PRIME_INFERENCE_PROVIDER_ID,
+                crate::provider_auth::PRIME_INFERENCE_DEFAULT_MODEL_ID,
+                view,
+            )
+            .await;
+    }
+
+    // The connect-more-providers picker (TS `askOnboardingProviders`):
+    // the picker stays mounted between logins so several can connect in
+    // one pass, with fresh connected marks after each one.
     loop {
         let rows = provider_auth.0.login_options().await;
-        let options = provider_picker_options(&rows);
+        // One row per provider id (TS dedupes by id), never the Prime
+        // row the flow just signed in and never a service (`mcp:`
+        // integrations are services, not model providers).
+        let mut seen = std::collections::HashSet::new();
+        let options: Vec<crate::onboarding_flow::ProviderPickerOption> = rows
+            .iter()
+            .filter(|row| {
+                row.id != crate::provider_auth::PRIME_INFERENCE_PROVIDER_ID
+                    && !row.id.starts_with("mcp:")
+            })
+            .filter(|row| seen.insert(row.id.clone()))
+            .map(|row| crate::onboarding_flow::ProviderPickerOption {
+                id: row.id.clone(),
+                // A custom provider's name is user-controlled bytes (an
+                // unknown provider falls back to its id): the control
+                // scrub runs before any row renders it.
+                name: crate::menu_panel::scrub_controls(&row.name),
+                connected: row.configured,
+                available: row.available,
+            })
+            .collect();
         // An empty provider list ends the step (TS `options.length === 0`).
         if options.is_empty() {
             break;
@@ -492,8 +623,6 @@ pub(super) async fn run_onboarding_phase(
             .iter()
             .find(|row| row.id == pick)
             .expect("the picked row came from the same options list");
-        let selected_prime = row.id == crate::provider_auth::PRIME_INFERENCE_PROVIDER_ID;
-        let prime_login_succeeded;
         // TS `loginProvider`: the row's flow — the panel-prompted key,
         // or the panel-driven flow.
         if row.flow == crate::provider_auth::AuthFlow::ApiKeyPrompt {
@@ -560,11 +689,6 @@ pub(super) async fn run_onboarding_phase(
                             "the provider login task failed".to_string(),
                         )
                     });
-                    prime_login_succeeded = selected_prime
-                        && matches!(
-                            &outcome,
-                            crate::provider_auth::ProviderAuthOutcome::Status(_)
-                        );
                     session
                         .apply_auth_outcome(outcome, &provider_id, view)
                         .await;
@@ -618,11 +742,6 @@ pub(super) async fn run_onboarding_phase(
                             "the provider login task failed".to_string(),
                         )
                     });
-                    prime_login_succeeded = selected_prime
-                        && matches!(
-                            &outcome,
-                            crate::provider_auth::ProviderAuthOutcome::Status(_)
-                        );
                     session
                         .apply_auth_outcome(outcome, &provider_id, view)
                         .await;
@@ -631,17 +750,6 @@ pub(super) async fn run_onboarding_phase(
                     unreachable!("the login dialog yields no decisions")
                 }
             }
-        }
-        // Selecting Prime Inference keeps its established first-model
-        // behavior, while other providers never trigger Prime login.
-        if prime_login_succeeded && task.current_model.is_none() {
-            session
-                .apply_model_selection(
-                    crate::provider_auth::PRIME_INFERENCE_PROVIDER_ID,
-                    crate::provider_auth::PRIME_INFERENCE_DEFAULT_MODEL_ID,
-                    view,
-                )
-                .await;
         }
         // The loop re-mounts a fresh picker with fresh connected marks.
     }
@@ -710,57 +818,4 @@ fn warn_onboarding_persist_failure(
         kind: crate::chat::StatusKind::Warning,
     });
     session.dirty = true;
-}
-
-fn provider_picker_options(
-    rows: &[crate::provider_auth::ProviderRow],
-) -> Vec<crate::onboarding_flow::ProviderPickerOption> {
-    let mut seen = std::collections::HashSet::new();
-    rows.iter()
-        .filter(|row| !row.id.starts_with("mcp:"))
-        .filter(|row| seen.insert(row.id.clone()))
-        .map(|row| crate::onboarding_flow::ProviderPickerOption {
-            id: row.id.clone(),
-            name: crate::menu_panel::scrub_controls(&row.name),
-            connected: row.configured,
-            available: row.available,
-        })
-        .collect()
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn first_run_provider_picker_offers_prime_without_forcing_it() {
-        let rows = [
-            crate::provider_auth::ProviderRow {
-                id: crate::provider_auth::PRIME_INFERENCE_PROVIDER_ID.to_string(),
-                name: "Prime Inference".to_string(),
-                auth_type: crate::provider_auth::AuthType::Oauth,
-                status: None,
-                flow: crate::provider_auth::AuthFlow::TerminalFlow,
-                configured: false,
-                available: true,
-            },
-            crate::provider_auth::ProviderRow {
-                id: "mcp:linear".to_string(),
-                name: "Linear".to_string(),
-                auth_type: crate::provider_auth::AuthType::Oauth,
-                status: None,
-                flow: crate::provider_auth::AuthFlow::TerminalFlow,
-                configured: false,
-                available: true,
-            },
-        ];
-
-        let options = provider_picker_options(&rows);
-        assert_eq!(options.len(), 1);
-        assert_eq!(
-            options[0].id,
-            crate::provider_auth::PRIME_INFERENCE_PROVIDER_ID
-        );
-        assert!(options[0].available);
-    }
 }

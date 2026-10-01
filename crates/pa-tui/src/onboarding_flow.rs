@@ -26,8 +26,12 @@ pub(crate) const PROVIDERS_SEARCH_PLACEHOLDER: &str = "Search providers";
 pub(crate) const PROVIDERS_NOTE: &str = "You can add providers anytime with /login.";
 /// TS `continueLabel`.
 pub(crate) const CONTINUE_LABEL: &str = "Continue";
-/// The welcome screen starts provider setup without requiring a Prime account.
-pub(crate) const LOGIN_ACTION_LABEL: &str = "Choose a provider";
+/// TS `LOGIN_ACTION_LABEL`: the welcome screen's single action.
+pub(crate) const LOGIN_ACTION_LABEL: &str = "Log in with Prime Intellect";
+/// The Prime Inference login's heading (TS `showAuthPanel(dialog, {
+/// heading })`): the panel that owns the block names itself in place of
+/// the brand line.
+pub(crate) const PRIME_LOGIN_HEADING: &str = "Login with Prime Intellect";
 /// The API-key prompt's heading label (TS `showPrompt("Enter API key:")`).
 pub(crate) const API_KEY_PROMPT: &str = "Enter API key:";
 
@@ -517,8 +521,8 @@ pub(crate) fn welcome_rows(theme: &Theme, width: usize) -> Vec<Line> {
     lines
 }
 
-/// The welcome screen's single action: the bold provider setup row washed
-/// across its highlight band,
+/// The welcome screen's single action (TS `renderActions`): the bold
+/// `> Log in with Prime Intellect` row washed across its highlight band,
 /// one column in from the pane edge.
 pub(crate) fn welcome_action_row(theme: &Theme, width: usize) -> Line {
     let band = MIN_HIGHLIGHT_WIDTH
@@ -587,7 +591,8 @@ mod tests {
 
     #[test]
     fn the_welcome_action_row_matches_the_ts_band() {
-        // The band follows the setup label width plus marker and padding.
+        // The band is the TS label width (26) + marker + trailing = 34,
+        // under the pane budget; the row pads the rest of the pane.
         let row = welcome_action_row(&theme(), 80);
         let text = row_text(&row);
         assert!(
